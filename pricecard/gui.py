@@ -36,6 +36,73 @@ def parse_number(value: str) -> float:
     return number
 
 
+def insert_numpad_ascii(event, allow_decimal=True):
+    """Use Windows virtual key codes before an IME can change keypad text."""
+    code = event.keycode if sys.platform == "win32" else None
+    if code is not None and 96 <= code <= 105:
+        char = str(code - 96)
+    elif code == 110 or event.keysym in ("KP_Decimal", "KP_Separator"):
+        if not allow_decimal:
+            return "break"
+        char = "."
+    else:
+        return None
+    widget = event.widget
+    if widget.selection_present():
+        widget.delete("sel.first", "sel.last")
+    widget.insert("insert", char)
+    return "break"
+
+
+class NumericFloatDialog(simpledialog.Dialog):
+    def __init__(self, parent, title, prompt, initialvalue, minvalue, maxvalue):
+        self.prompt = prompt
+        self.initialvalue = initialvalue
+        self.minvalue = minvalue
+        self.maxvalue = maxvalue
+        self.parsed = None
+        super().__init__(parent, title)
+
+    def body(self, master):
+        ttk.Label(master, text=self.prompt).pack(anchor="w", pady=(0, 7))
+        self.entry = ttk.Entry(master, width=24)
+        self.entry.pack(fill="x")
+        self.entry.insert(0, f"{self.initialvalue:g}")
+        self.entry.selection_range(0, "end")
+        self.entry.bind("<KeyPress>", insert_numpad_ascii, add="+")
+        return self.entry
+
+    def validate(self):
+        try:
+            value = parse_number(self.entry.get())
+            if not self.minvalue <= value <= self.maxvalue:
+                raise ValueError()
+        except ValueError:
+            messagebox.showerror("數值範圍", f"請輸入 {self.minvalue:g} 至 {self.maxvalue:g} 的數字。", parent=self)
+            return False
+        self.parsed = value
+        return True
+
+    def apply(self):
+        self.result = self.parsed
+
+
+class ElementChoiceDialog(simpledialog.Dialog):
+    def __init__(self, parent, options):
+        self.options = options
+        super().__init__(parent, "新增方塊")
+
+    def body(self, master):
+        ttk.Label(master, text="選擇要新增的方塊種類：").pack(anchor="w", pady=(0, 7))
+        self.choice = ttk.Combobox(master, values=self.options, state="readonly", width=26)
+        self.choice.pack(fill="x")
+        self.choice.current(0)
+        return self.choice
+
+    def apply(self):
+        self.result = self.choice.get()
+
+
 class ScrolledFrame(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -49,11 +116,16 @@ class ScrolledFrame(ttk.Frame):
         self.inner.bind("<Configure>", lambda _e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(self.window, width=e.width))
 
+    def scroll_wheel(self, delta):
+        if delta:
+            steps = max(1, round(abs(delta) / 120))
+            self.canvas.yview_scroll(-steps if delta > 0 else steps, "units")
+
 
 class PriceCardApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("集雅社價格牌產生器  •  v1.1")
+        self.title("集雅社價格牌產生器  •  v1.2")
         try:self.iconbitmap(str(core.resources() / "app.ico"))
         except Exception:pass
         self.geometry("1480x900")
@@ -72,6 +144,10 @@ class PriceCardApp(tk.Tk):
         self.preview_image = None
         self.preview_scale = 1.0
         self.preview_origin = (0.0, 0.0)
+        self.preview_pan = (0.0, 0.0)
+        self.page_size_pt = None
+        self.render_ratio = None
+        self.pan_start = None
         self.render_job = None
         self.save_job = None
         self.undo_stack = []
@@ -79,7 +155,6 @@ class PriceCardApp(tk.Tk):
         self.drag_start = None
         self.drag_rect = None
         self.drag_corner = None
-        self.last_numeric_entry = None
         self._loading = False
         self._last_edit = (None, 0.0)
         self._build()
@@ -122,11 +197,15 @@ class PriceCardApp(tk.Tk):
         right = ttk.Frame(paned, width=340)
         paned.add(right, weight=3)
         self._build_right(right)
+        self.bind_class("PriceCardSideWheel", "<MouseWheel>", self._route_mouse_wheel)
+        self._bind_side_wheel(self.right_edit_scroll)
+        self._bind_side_wheel(self.right_print_scroll)
         status = ttk.Frame(self, padding=(15, 6));status.pack(fill="x")
         self.status = tk.StringVar(value="選擇尺寸與版型，於左側填寫商品內容。")
         ttk.Label(status, textvariable=self.status).pack(side="left")
         ttk.Label(status, text="方向鍵 0.1 mm  •  Shift 方向鍵 1 mm  •  Ctrl+Z 復原", foreground="#666666").pack(side="right")
         self.bind_all("<Control-KeyPress>", self._control_shortcut, add="+")
+        self.bind_all("<MouseWheel>", self._route_mouse_wheel, add="+")
 
     def _make_menu(self):
         bar = tk.Menu(self)
@@ -163,6 +242,10 @@ class PriceCardApp(tk.Tk):
         self.canvas.bind("<B1-Motion>", self._mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self._mouse_up)
         self.canvas.bind("<Motion>", self._mouse_hover)
+        self.canvas.bind("<MouseWheel>", self._preview_wheel)
+        self.canvas.bind("<ButtonPress-2>", self._pan_down)
+        self.canvas.bind("<B2-Motion>", self._pan_drag)
+        self.canvas.bind("<ButtonRelease-2>", self._pan_up)
         self.canvas.bind("<KeyPress>", self._key_move)
         self.canvas.configure(takefocus=1)
         self.warn_var = tk.StringVar(value="")
@@ -178,27 +261,33 @@ class PriceCardApp(tk.Tk):
         edit_scroll = ScrolledFrame(edit_tab)
         edit_scroll.pack(fill="both", expand=True)
         self._build_properties(edit_scroll.inner)
-        self._build_print(print_tab)
+        print_scroll = ScrolledFrame(print_tab)
+        print_scroll.pack(fill="both", expand=True)
+        self._build_print(print_scroll.inner)
+        self.right_edit_scroll = edit_scroll
+        self.right_print_scroll = print_scroll
 
     def _section(self, parent, title):
         box = ttk.LabelFrame(parent, text=title, padding=10)
         box.pack(fill="x", pady=(0, 12))
         return box
 
-    def _line(self, parent, label, var, width=24):
+    def _line(self, parent, label, var, width=24, numeric=False):
         row = ttk.Frame(parent)
         row.pack(fill="x", pady=3)
         ttk.Label(row, text=label, width=9).pack(side="left")
         ent = ttk.Entry(row, textvariable=var, width=width)
         ent.pack(side="left", fill="x", expand=True)
         ent.bind("<Control-KeyPress>", self._control_shortcut)
+        if numeric:
+            ent.bind("<KeyPress>", insert_numpad_ascii, add="+")
         return ent
 
     def _product_entry(self, parent, key, label):
         v = tk.StringVar()
         self.product_vars[key] = v
         v.trace_add("write", lambda *_a, k=key, variable=v: self._product_changed(k, variable.get()))
-        return self._line(parent, label, v)
+        return self._line(parent, label, v, numeric=key in ("old_price", "price") or key.endswith("_price"))
 
     def _product_text(self, parent, key, label, height=3):
         ttk.Label(parent, text=label).pack(anchor="w", pady=(5, 0))
@@ -234,14 +323,6 @@ class PriceCardApp(tk.Tk):
         self._product_entry(content, "model", "型號")
         self._product_text(content, "features", "特色說明（每行一項）", 4)
         self._product_entry(content, "dimensions", "尺寸說明")
-        snippets = self._section(parent, "常用說明")
-        self.snippet_var = tk.StringVar()
-        self.snippet_combo = ttk.Combobox(snippets, textvariable=self.snippet_var,
-                                           values=[s["name"] for s in self.project["snippets"]], state="readonly")
-        self.snippet_combo.pack(fill="x")
-        actions = ttk.Frame(snippets);actions.pack(fill="x", pady=(6, 0))
-        ttk.Button(actions, text="插入到說明", command=self.insert_snippet).pack(side="left")
-        ttk.Button(actions, text="儲存目前說明", command=self.save_snippet).pack(side="left", padx=3)
         price = self._section(parent, "價格")
         self._product_entry(price, "old_price", "原價")
         self._product_entry(price, "price", "售價")
@@ -264,6 +345,7 @@ class PriceCardApp(tk.Tk):
         self._product_entry(internal, "sku", "商品代碼")
         self._product_entry(internal, "location", "擺放位置")
         self._product_text(internal, "notes", "備註", 2)
+        self._bind_side_wheel(self.left_scroll)
 
     def _build_properties(self, tab):
         ttk.Label(tab, text="點預覽選取；拖移方塊或四角縮放，方向鍵可微調", foreground="#656565", wraplength=300).pack(anchor="w")
@@ -279,28 +361,35 @@ class PriceCardApp(tk.Tk):
         ttk.Label(tab, textvariable=self.selected_label, font=("Microsoft JhengHei", 11, "bold")).pack(anchor="w", pady=(14, 4))
         grid = ttk.Frame(tab);grid.pack(fill="x")
         self.prop_vars = {}
-        self.prop_entries = []
-        for row_idx, pair in enumerate((("X", "Y"), ("寬", "高"), ("字級 pt", "顏色"))):
+        for pair in (("X", "Y"), ("寬", "高"), ("字級 pt",)):
             row = ttk.Frame(grid);row.pack(fill="x", pady=3)
             for label in pair:
                 ttk.Label(row, text=label, width=8 if label != "字級 pt" else 9).pack(side="left")
                 v = tk.StringVar();self.prop_vars[label] = v
-                entry = ttk.Entry(row, textvariable=v, width=10 if label != "顏色" else 11)
+                entry = ttk.Entry(row, textvariable=v, width=10)
                 entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
                 entry.bind("<Control-KeyPress>", self._control_shortcut)
-                if label != "顏色":
-                    self.prop_entries.append(entry)
-                    entry.bind("<FocusIn>", lambda _event, widget=entry: setattr(self, "last_numeric_entry", widget))
-        ttk.Button(tab, text="輸入小數點 .", command=self.insert_decimal_point).pack(anchor="w", pady=(3, 0))
-        ttk.Label(tab, text="中文輸入法的 。、． 也可作為小數點。", foreground="#666666").pack(anchor="w")
-        ttk.Button(tab, text="選顏色", command=self.pick_color).pack(anchor="w", pady=5)
-        background = ttk.Frame(tab);background.pack(fill="x", pady=(5, 2))
-        ttk.Label(background, text="文字背景色").pack(side="left")
+                entry.bind("<KeyPress>", insert_numpad_ascii, add="+")
+        colors = ttk.Frame(tab);colors.pack(fill="x", pady=(7, 2))
+        foreground = ttk.Frame(colors);foreground.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        ttk.Label(foreground, text="方塊顏色").pack(anchor="w")
+        foreground_row = ttk.Frame(foreground);foreground_row.pack(fill="x")
+        self.prop_vars["顏色"] = tk.StringVar()
+        color_entry = ttk.Entry(foreground_row, textvariable=self.prop_vars["顏色"], width=8)
+        color_entry.pack(side="left", fill="x", expand=True)
+        color_entry.bind("<Control-KeyPress>", self._control_shortcut)
+        ttk.Button(foreground_row, text="選", width=3, command=self.pick_color).pack(side="left", padx=(2, 0))
+        background = ttk.Frame(colors);background.pack(side="left", fill="x", expand=True)
+        ttk.Label(background, text="文字背景色").pack(anchor="w")
+        background_row = ttk.Frame(background);background_row.pack(fill="x")
         self.background_var = tk.StringVar()
-        self.background_entry = ttk.Entry(background, textvariable=self.background_var, width=11)
-        self.background_entry.pack(side="left", padx=(6, 0), fill="x", expand=True)
-        ttk.Button(tab, text="選背景色", command=self.pick_background_color).pack(anchor="w", pady=(0, 2))
-        ttk.Button(tab, text="清除背景色", command=lambda: self.background_var.set("")).pack(anchor="w")
+        self.background_entry = ttk.Entry(background_row, textvariable=self.background_var, width=8)
+        self.background_entry.pack(side="left", fill="x", expand=True)
+        self.background_entry.bind("<Control-KeyPress>", self._control_shortcut)
+        self.background_picker = ttk.Button(background_row, text="選", width=3, command=self.pick_background_color)
+        self.background_picker.pack(side="left", padx=(2, 0))
+        self.background_clear = ttk.Button(background_row, text="×", width=2, command=lambda: self.background_var.set(""))
+        self.background_clear.pack(side="left", padx=(2, 0))
         self.bold_var = tk.BooleanVar(value=False)
         self.bold_check = ttk.Checkbutton(tab, text="粗體", variable=self.bold_var)
         self.bold_check.pack(anchor="w", pady=(6, 0))
@@ -326,7 +415,9 @@ class PriceCardApp(tk.Tk):
         row = ttk.Frame(tab);row.pack(fill="x")
         ttk.Label(row, text="份數").pack(side="left")
         self.qty = tk.IntVar(value=1)
-        tk.Spinbox(row, from_=1, to=1000, textvariable=self.qty, width=6).pack(side="left", padx=5)
+        qty_entry = tk.Spinbox(row, from_=1, to=1000, textvariable=self.qty, width=6)
+        qty_entry.pack(side="left", padx=5)
+        qty_entry.bind("<KeyPress>", lambda event: insert_numpad_ascii(event, False), add="+")
         ttk.Button(row, text="加入目前價格牌", command=self.add_queue).pack(side="left", padx=5)
         self.queue_list = tk.Listbox(tab, height=12, exportselection=False)
         self.queue_list.pack(fill="x", pady=10)
@@ -342,8 +433,8 @@ class PriceCardApp(tk.Tk):
             ttk.Label(opt, text=label).pack(anchor="w")
             c = ttk.Combobox(opt, textvariable=var, values=options, state="readonly")
             c.pack(fill="x", pady=(2, 6));c.bind("<<ComboboxSelected>>", self.refresh_layout_label)
-        self._line(opt, "頁邊距 mm", self.margin)
-        self._line(opt, "牌間距 mm", self.gap)
+        self._line(opt, "頁邊距 mm", self.margin, numeric=True)
+        self._line(opt, "牌間距 mm", self.gap, numeric=True)
         ttk.Checkbutton(opt, text="裁切線", variable=self.marks).pack(anchor="w", pady=4)
         self.layout_label = tk.StringVar(value="")
         ttk.Label(tab, textvariable=self.layout_label, foreground="#595959", wraplength=300).pack(anchor="w", pady=(0, 10))
@@ -406,14 +497,31 @@ class PriceCardApp(tk.Tk):
             self.save_project()
             return "break"
 
-    def insert_decimal_point(self):
-        entry = self.last_numeric_entry
-        if entry is None or not entry.winfo_exists():
-            entry = self.prop_entries[0]
-        if entry.selection_present():
-            entry.delete("sel.first", "sel.last")
-        entry.insert("insert", ".")
-        entry.focus_set()
+    def _route_mouse_wheel(self, event):
+        try:
+            widget = self.winfo_containing(event.x_root, event.y_root)
+        except (KeyError, tk.TclError):
+            return
+        if widget is None or widget.winfo_toplevel() is not self:
+            return
+        areas = (self.left_scroll, self.right_edit_scroll, self.right_print_scroll)
+        current = widget
+        while current is not None:
+            if current in areas:
+                current.scroll_wheel(event.delta)
+                return "break"
+            parent_name = current.winfo_parent()
+            try:
+                current = current.nametowidget(parent_name) if parent_name else None
+            except KeyError:
+                return
+
+    def _bind_side_wheel(self, widget):
+        tags = widget.bindtags()
+        if "PriceCardSideWheel" not in tags:
+            widget.bindtags(("PriceCardSideWheel",) + tags)
+        for child in widget.winfo_children():
+            self._bind_side_wheel(child)
 
     def _replace_card(self, replacement):
         for index, c in enumerate(self.project["cards"]):
@@ -482,6 +590,8 @@ class PriceCardApp(tk.Tk):
         else:
             self.selected_label.set("未選取方塊")
             self.background_entry.configure(state="disabled")
+            self.background_picker.configure(state="disabled")
+            self.background_clear.configure(state="disabled")
             self.bold_check.configure(state="disabled")
 
     def _choose_element(self, _event=None):
@@ -505,6 +615,8 @@ class PriceCardApp(tk.Tk):
         self.bold_var.set(bool(el.get("bold", False)))
         text_state = "normal" if el.get("kind") == "text" else "disabled"
         self.background_entry.configure(state=text_state)
+        self.background_picker.configure(state=text_state)
+        self.background_clear.configure(state=text_state)
         self.bold_check.configure(state=text_state)
         self.align_var.set(el.get("align", "left"))
         self.visible_var.set(el.get("visible", True))
@@ -524,7 +636,7 @@ class PriceCardApp(tk.Tk):
             if rect[0] < 0 or rect[1] < 0 or rect[0] + rect[2] > self.card["width_mm"] or rect[1] + rect[3] > self.card["height_mm"]:
                 raise ValueError()
         except Exception:
-            messagebox.showerror("方塊設定", "請檢查座標、大小、字級及 #RRGGBB 色彩；中文句號可作為小數點，方塊須在成品內。")
+            messagebox.showerror("方塊設定", "請檢查座標、大小、字級及 #RRGGBB 色彩；可用右側數字鍵盤輸入小數點，方塊須在成品內。")
             return
         self._snapshot()
         el.update({"rect": rect, "size": size, "color": color, "align": self.align_var.get(),
@@ -553,16 +665,13 @@ class PriceCardApp(tk.Tk):
         self._load_properties(el);self.schedule_render();self.schedule_save()
 
     def add_element(self):
-        options = "集雅社標誌／右下五條裝飾／品牌標誌／商品名稱／型號／說明／尺寸／售價／原價／價格標籤／組合內容／自訂文字／圖片／矩形／分隔線"
-        choice = simpledialog.askstring("新增方塊", "輸入要新增的方塊種類：\n" + options, parent=self)
+        options = ("集雅社標誌", "右下五條裝飾", "品牌標誌", "商品名稱", "型號", "說明", "尺寸", "售價", "原價",
+                   "價格標籤", "組合內容", "自訂文字", "圖片", "矩形", "分隔線")
+        choice = ElementChoiceDialog(self, options).result
         if not choice: return
         field_map = {"集雅社標誌": "store_logo", "右下五條裝飾": "corner_stripes", "品牌標誌": "brand_logo", "商品名稱": "name", "型號": "model", "說明": "features", "尺寸": "dimensions",
                      "售價": "price_value", "原價": "old_price", "價格標籤": "price_label", "組合內容": "components", "自訂文字": "custom_text"}
-        field = field_map.get(choice.strip())
-        kind = "text"
-        if not field and choice not in ("圖片", "矩形", "分隔線"):
-            messagebox.showwarning("新增方塊", "請輸入清單中的名稱。")
-            return
+        field = field_map.get(choice)
         key = "custom-" + uuid.uuid4().hex[:8]
         m = self.card["safe_margin_mm"]
         rect = [m, round(self.card["height_mm"] * .4, 1), min(54, self.card["width_mm"] - 2 * m), 9]
@@ -645,6 +754,15 @@ class PriceCardApp(tk.Tk):
         if self.render_job:self.after_cancel(self.render_job)
         self.render_job = self.after(140, self.render_preview)
 
+    def _preview_ratio(self, scale):
+        if self.page_size_pt is None:
+            return None
+        page_width, page_height = self.page_size_pt
+        available_w = max(200, self.canvas.winfo_width() - 58)
+        available_h = max(180, self.canvas.winfo_height() - 58)
+        fit = min(available_w / page_width, available_h / page_height, 3.0)
+        return max(.35, min(5.0, fit * scale))
+
     def render_preview(self):
         self.render_job = None
         try:
@@ -652,16 +770,15 @@ class PriceCardApp(tk.Tk):
             pdf = pdfium.PdfDocument(blob)
             p = pdf[0]
             page_width, page_height = p.get_size()
-            available_w = max(200, self.canvas.winfo_width() - 58)
-            available_h = max(180, self.canvas.winfo_height() - 58)
-            ratio = min(available_w / page_width, available_h / page_height, 3.0) * self.preview_scale
-            ratio = max(.35, min(5.0, ratio))
+            self.page_size_pt = (page_width, page_height)
+            ratio = self._preview_ratio(self.preview_scale)
             bitmap = p.render(scale=ratio)
             img = bitmap.to_pil().convert("RGB")
             self.preview_image = ImageTk.PhotoImage(img)
             self.view_px_per_mm = ratio * core.PT_PER_MM
-            self.preview_origin = ((self.canvas.winfo_width() - img.width) / 2,
-                                   (self.canvas.winfo_height() - img.height) / 2)
+            self.render_ratio = ratio
+            self.preview_origin = ((self.canvas.winfo_width() - img.width) / 2 + self.preview_pan[0],
+                                   (self.canvas.winfo_height() - img.height) / 2 + self.preview_pan[1])
             self.canvas.delete("all")
             x, y = self.preview_origin
             self.canvas.create_rectangle(x - 2, y - 2, x + img.width + 2, y + img.height + 2,
@@ -704,6 +821,9 @@ class PriceCardApp(tk.Tk):
                      if abs(px - hx) <= 8 and abs(py - hy) <= 8), None)
 
     def _mouse_hover(self, event):
+        if self.pan_start is not None:
+            self.canvas.configure(cursor="fleur")
+            return
         self.canvas.configure(cursor="crosshair" if self._handle_at(event.x, event.y) else "arrow")
 
     def _mouse_down(self, event):
@@ -777,8 +897,63 @@ class PriceCardApp(tk.Tk):
             self._load_properties(el);self.draw_selection();self.schedule_render();self.schedule_save()
         return "break"
 
-    def zoom(self, factor):
-        self.preview_scale = 1.0 if factor is None else max(.45, min(3.0, self.preview_scale * factor))
+    def _preview_wheel(self, event):
+        if event.delta:
+            notches = max(1, round(abs(event.delta) / 120))
+            factor = 1.2 ** (notches if event.delta > 0 else -notches)
+            self.zoom(factor, (event.x, event.y))
+        return "break"
+
+    def _pan_down(self, event):
+        self.pan_start = (event.x, event.y)
+        self.canvas.configure(cursor="fleur")
+        return "break"
+
+    def _pan_drag(self, event):
+        if self.pan_start is None:
+            return "break"
+        dx, dy = event.x - self.pan_start[0], event.y - self.pan_start[1]
+        self.pan_start = (event.x, event.y)
+        self.preview_pan = (self.preview_pan[0] + dx, self.preview_pan[1] + dy)
+        self.preview_origin = (self.preview_origin[0] + dx, self.preview_origin[1] + dy)
+        self.canvas.move("all", dx, dy)
+        return "break"
+
+    def _pan_up(self, _event):
+        self.pan_start = None
+        self.canvas.configure(cursor="arrow")
+        self.schedule_render()
+        return "break"
+
+    def zoom(self, factor, anchor=None):
+        if factor is None:
+            self.preview_scale = 1.0
+            self.preview_pan = (0.0, 0.0)
+            fit_ratio = self._preview_ratio(1.0)
+            if fit_ratio is not None:
+                page_width, page_height = self.page_size_pt
+                self.render_ratio = fit_ratio
+                self.preview_origin = ((self.canvas.winfo_width() - page_width * fit_ratio) / 2,
+                                       (self.canvas.winfo_height() - page_height * fit_ratio) / 2)
+                self.view_px_per_mm = fit_ratio * core.PT_PER_MM
+            self.schedule_render()
+            return
+        new_scale = max(.45, min(3.0, self.preview_scale * factor))
+        old_ratio = self.render_ratio
+        new_ratio = self._preview_ratio(new_scale)
+        if old_ratio and new_ratio:
+            if anchor is None:
+                anchor = (self.canvas.winfo_width() / 2, self.canvas.winfo_height() / 2)
+            new_origin = (anchor[0] - (anchor[0] - self.preview_origin[0]) * new_ratio / old_ratio,
+                          anchor[1] - (anchor[1] - self.preview_origin[1]) * new_ratio / old_ratio)
+            page_width, page_height = self.page_size_pt
+            centered = ((self.canvas.winfo_width() - page_width * new_ratio) / 2,
+                        (self.canvas.winfo_height() - page_height * new_ratio) / 2)
+            self.preview_pan = (new_origin[0] - centered[0], new_origin[1] - centered[1])
+            self.preview_origin = new_origin
+            self.render_ratio = new_ratio
+            self.view_px_per_mm = new_ratio * core.PT_PER_MM
+        self.preview_scale = new_scale
         self.schedule_render()
 
     def _choose_card(self, _event):
@@ -799,9 +974,9 @@ class PriceCardApp(tk.Tk):
         self.selected = None;self.load_card();self.schedule_save()
 
     def resize_card(self):
-        w = simpledialog.askfloat("成品寬度", "寬度 mm（40 至 420）：", initialvalue=self.card["width_mm"], minvalue=40, maxvalue=420, parent=self)
+        w = NumericFloatDialog(self, "成品寬度", "寬度 mm（40 至 420）：", self.card["width_mm"], 40, 420).result
         if w is None:return
-        h = simpledialog.askfloat("成品高度", "高度 mm（30 至 420）：", initialvalue=self.card["height_mm"], minvalue=30, maxvalue=420, parent=self)
+        h = NumericFloatDialog(self, "成品高度", "高度 mm（30 至 420）：", self.card["height_mm"], 30, 420).result
         if h is None:return
         self._snapshot();self.card["width_mm"] = w;self.card["height_mm"] = h
         self.size_label.set(f"{w:g} × {h:g} mm  •  100% PDF")
@@ -828,11 +1003,9 @@ class PriceCardApp(tk.Tk):
         self.load_card();self.schedule_save()
 
     def blank_template(self):
-        w = simpledialog.askfloat("空白版型", "成品寬度 mm（40 至 420）：", initialvalue=90,
-                                  minvalue=40, maxvalue=420, parent=self)
+        w = NumericFloatDialog(self, "空白版型", "成品寬度 mm（40 至 420）：", 90, 40, 420).result
         if w is None:return
-        h = simpledialog.askfloat("空白版型", "成品高度 mm（30 至 420）：", initialvalue=60,
-                                  minvalue=30, maxvalue=420, parent=self)
+        h = NumericFloatDialog(self, "空白版型", "成品高度 mm（30 至 420）：", 60, 30, 420).result
         if h is None:return
         name = simpledialog.askstring("空白版型", "版型名稱：", initialvalue=f"自訂 {w:g} × {h:g}", parent=self)
         if not name:return
@@ -1031,8 +1204,9 @@ class PriceCardApp(tk.Tk):
     def show_help(self):
         messagebox.showinfo("操作說明", "1. 選擇版型，於左側輸入內容。\n"
                             "2. 在預覽點選方塊，拖移方塊可移動，拖移四角可調整大小。\n"
-                            "3. 右側可設定座標、粗體與文字背景色；中文句號可作為小數點。\n"
-                            "4. 儲存專案或另存自訂版型，加入列印清單後匯出 PDF。\n"
+                            "3. 左右欄可用滾輪捲動；預覽滾輪縮放，中鍵拖曳平移。\n"
+                            "4. 右側可設定座標、粗體與顏色；數值欄可直接用右側數字鍵盤輸入。\n"
+                            "5. 儲存專案或另存自訂版型，加入列印清單後匯出 PDF。\n"
                             "Ctrl+Z 復原、Ctrl+Y 或 Ctrl+Shift+Z 重做；上方亦有按鈕。\n"
                             "列印時請選擇 100%／實際大小。示範內容不代表現價。")
 
