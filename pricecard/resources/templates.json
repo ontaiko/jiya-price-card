@@ -1,0 +1,507 @@
+{
+  "version": 1,
+  "status": "design_draft",
+  "confirmed_size_principle": "成品尺寸以牌架為主",
+  "working_basis": "使用者指示先不討論牌架，以各尺寸先設計；本稿以來源標示尺寸為設計工作尺寸",
+  "templates": [
+    {
+      "id": "compact-90x60",
+      "name": "小型單品",
+      "width_mm": 90,
+      "height_mm": 60,
+      "mode": "single",
+      "source": "SONY價格牌W11.5XH6.5cm.docx",
+      "title_pt": 16,
+      "model_pt": 10.5,
+      "body_pt": 9,
+      "price_pt": 28,
+      "safe_margin_mm": 3,
+      "content_limit": "商品名2行；型號1行；規格2行",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            3,
+            3,
+            84,
+            8
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            3,
+            14,
+            84,
+            13
+          ]
+        },
+        {
+          "name": "model",
+          "rect_mm": [
+            3,
+            28,
+            84,
+            5
+          ]
+        },
+        {
+          "name": "specifications",
+          "rect_mm": [
+            3,
+            34,
+            84,
+            9
+          ]
+        },
+        {
+          "name": "price",
+          "rect_mm": [
+            3,
+            46,
+            82,
+            11
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    },
+    {
+      "id": "standard-90x65",
+      "name": "中型單品",
+      "width_mm": 90,
+      "height_mm": 65,
+      "mode": "single",
+      "source": "SONY價格牌W11.5XH6.5cm.docx",
+      "title_pt": 16,
+      "model_pt": 11,
+      "body_pt": 9.5,
+      "price_pt": 30,
+      "safe_margin_mm": 3,
+      "content_limit": "商品名2行；型號1行；重點或規格3行",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            3,
+            3,
+            84,
+            8
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            3,
+            14,
+            84,
+            13
+          ]
+        },
+        {
+          "name": "model",
+          "rect_mm": [
+            3,
+            28,
+            84,
+            5
+          ]
+        },
+        {
+          "name": "specifications",
+          "rect_mm": [
+            3,
+            35,
+            84,
+            12
+          ]
+        },
+        {
+          "name": "price",
+          "rect_mm": [
+            3,
+            51,
+            82,
+            11
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    },
+    {
+      "id": "wide-115x65",
+      "name": "大型單品",
+      "width_mm": 115,
+      "height_mm": 65,
+      "mode": "single",
+      "source": "SONY價格牌W11.5XH6.5cm.docx",
+      "title_pt": 18,
+      "model_pt": 11,
+      "body_pt": 10.5,
+      "price_pt": 32,
+      "safe_margin_mm": 3,
+      "content_limit": "商品名2行；型號1行；重點3行；原價及售價",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            3,
+            3,
+            109,
+            9
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            3,
+            14,
+            109,
+            14
+          ]
+        },
+        {
+          "name": "model",
+          "rect_mm": [
+            3,
+            28,
+            109,
+            5
+          ]
+        },
+        {
+          "name": "features",
+          "rect_mm": [
+            3,
+            35,
+            109,
+            13
+          ]
+        },
+        {
+          "name": "price",
+          "rect_mm": [
+            48,
+            50,
+            61,
+            12
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    },
+    {
+      "id": "display-210x130",
+      "name": "大型展示",
+      "width_mm": 210,
+      "height_mm": 130,
+      "mode": "single",
+      "source": "音響大價格牌.docx",
+      "title_pt": 28,
+      "model_pt": 18,
+      "body_pt": 15,
+      "price_pt": 52,
+      "safe_margin_mm": 6,
+      "content_limit": "商品名2行；型號1行；尺寸1行；重點4行",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            6,
+            3,
+            198,
+            15
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            6,
+            24,
+            198,
+            23
+          ]
+        },
+        {
+          "name": "model",
+          "rect_mm": [
+            6,
+            47,
+            198,
+            9
+          ]
+        },
+        {
+          "name": "dimensions",
+          "rect_mm": [
+            6,
+            56,
+            198,
+            9
+          ]
+        },
+        {
+          "name": "features",
+          "rect_mm": [
+            6,
+            70,
+            198,
+            27
+          ]
+        },
+        {
+          "name": "price",
+          "rect_mm": [
+            89,
+            103,
+            110,
+            23
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    },
+    {
+      "id": "optional-60x65",
+      "name": "窄型備選",
+      "width_mm": 60,
+      "height_mm": 65,
+      "mode": "single",
+      "source": "(大)價格牌W11.5XH6.5cm.docx；尺寸僅作備選",
+      "title_pt": 13,
+      "model_pt": 10.5,
+      "body_pt": 9,
+      "price_pt": 24,
+      "safe_margin_mm": 3,
+      "content_limit": "商品名2行；型號1行；重點2行；售價",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            3,
+            3,
+            54,
+            7
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            3,
+            14,
+            54,
+            12
+          ]
+        },
+        {
+          "name": "model",
+          "rect_mm": [
+            3,
+            29,
+            54,
+            5
+          ]
+        },
+        {
+          "name": "features",
+          "rect_mm": [
+            3,
+            36,
+            54,
+            9
+          ]
+        },
+        {
+          "name": "price",
+          "rect_mm": [
+            3,
+            50,
+            51,
+            12
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    },
+    {
+      "id": "variants-90x60",
+      "name": "同系列多型號",
+      "width_mm": 90,
+      "height_mm": 60,
+      "mode": "variants",
+      "source": "9X6小價格牌正確.xlsx",
+      "title_pt": 15,
+      "model_pt": 10,
+      "body_pt": 8.5,
+      "price_pt": 16,
+      "safe_margin_mm": 3,
+      "content_limit": "共用名稱1行；2款型號與各自價格；每款補充1行",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            3,
+            3,
+            84,
+            8
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            3,
+            14,
+            84,
+            8
+          ]
+        },
+        {
+          "name": "variant_1",
+          "rect_mm": [
+            3,
+            25,
+            84,
+            13
+          ]
+        },
+        {
+          "name": "variant_2",
+          "rect_mm": [
+            3,
+            42,
+            84,
+            13
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    },
+    {
+      "id": "bundle-210x130",
+      "name": "組合商品",
+      "width_mm": 210,
+      "height_mm": 130,
+      "mode": "bundle",
+      "source": "音響大價格牌.docx",
+      "title_pt": 28,
+      "model_pt": 16,
+      "body_pt": 14,
+      "price_pt": 48,
+      "safe_margin_mm": 6,
+      "content_limit": "組合名稱2行；構成商品2項；共同說明3行；原價與組合價",
+      "fields": [
+        {
+          "name": "header",
+          "rect_mm": [
+            6,
+            3,
+            198,
+            15
+          ]
+        },
+        {
+          "name": "name",
+          "rect_mm": [
+            6,
+            24,
+            198,
+            15
+          ]
+        },
+        {
+          "name": "components",
+          "rect_mm": [
+            6,
+            43,
+            198,
+            30
+          ]
+        },
+        {
+          "name": "features",
+          "rect_mm": [
+            6,
+            79,
+            198,
+            21
+          ]
+        },
+        {
+          "name": "price",
+          "rect_mm": [
+            88,
+            105,
+            111,
+            20
+          ]
+        }
+      ],
+      "font_cjk": "Droid Sans Fallback embedded in preview; Microsoft JhengHei may be chosen in the later app after layout verification",
+      "colors": {
+        "brand": "#B70031",
+        "price": "#FF0000",
+        "text": "#121212",
+        "secondary": "#595959",
+        "highlight": "#FFFF00"
+      },
+      "design_status": "draft_at_nominal_dimensions",
+      "holder_fit": "pending_future_measurement"
+    }
+  ],
+  "examples_are_current_prices": false,
+  "font_note": "Original logos are preserved. Deterministic previews use an embedded CJK font rather than claiming Microsoft JhengHei was available."
+}

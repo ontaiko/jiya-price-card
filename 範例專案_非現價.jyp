@@ -1,0 +1,1278 @@
+{
+  "version": 1,
+  "templates": {},
+  "cards": [
+    {
+      "id": "3c3644e13dc0",
+      "template_id": "compact-90x60",
+      "name": "【示範非現價】小型單品",
+      "width_mm": 90.0,
+      "height_mm": 60.0,
+      "mode": "single",
+      "safe_margin_mm": 3.0,
+      "product": {
+        "brand": "SONY",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "65吋 Mini LED 4K 智慧顯示器",
+        "model": "Y-65XR50",
+        "features": "BRAVIA 5",
+        "dimensions": "不含底座 1447 × 832 × 58 mm",
+        "price": "45900",
+        "old_price": "59900",
+        "price_label": "特價",
+        "variants": [
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          },
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          }
+        ],
+        "components": "",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            3.0,
+            3.0,
+            25.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            59.0,
+            3.0,
+            28.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            3.0,
+            14.0,
+            84.0,
+            13.0
+          ],
+          "size": 16.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "model",
+          "kind": "text",
+          "field": "model",
+          "rect": [
+            3.0,
+            28.0,
+            84.0,
+            5.0
+          ],
+          "size": 10.5,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "specifications",
+          "kind": "text",
+          "field": "specifications",
+          "rect": [
+            3.0,
+            34.0,
+            84.0,
+            9.0
+          ],
+          "size": 9.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_label",
+          "kind": "text",
+          "field": "price_label",
+          "rect": [
+            3.0,
+            48.97,
+            24.0,
+            6.0
+          ],
+          "size": 8.0,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_value",
+          "kind": "text",
+          "field": "price_value",
+          "rect": [
+            27.0,
+            46.0,
+            58.0,
+            11.0
+          ],
+          "size": 28.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "old_price",
+          "kind": "text",
+          "field": "old_price",
+          "rect": [
+            3.0,
+            41.5,
+            29.0,
+            4.5
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "84d053cd919d",
+      "template_id": "standard-90x65",
+      "name": "【示範非現價】中型單品",
+      "width_mm": 90.0,
+      "height_mm": 65.0,
+      "mode": "single",
+      "safe_margin_mm": 3.0,
+      "product": {
+        "brand": "SONY",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "65吋 Mini LED 4K 智慧顯示器",
+        "model": "Y-65XR50",
+        "features": "BRAVIA 5",
+        "dimensions": "不含底座 1447 × 832 × 58 mm",
+        "price": "45900",
+        "old_price": "59900",
+        "price_label": "特價",
+        "variants": [
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          },
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          }
+        ],
+        "components": "",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            3.0,
+            3.0,
+            25.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            59.0,
+            3.0,
+            28.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            3.0,
+            14.0,
+            84.0,
+            13.0
+          ],
+          "size": 16.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "model",
+          "kind": "text",
+          "field": "model",
+          "rect": [
+            3.0,
+            28.0,
+            84.0,
+            5.0
+          ],
+          "size": 11.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "specifications",
+          "kind": "text",
+          "field": "specifications",
+          "rect": [
+            3.0,
+            35.0,
+            84.0,
+            12.0
+          ],
+          "size": 9.5,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_label",
+          "kind": "text",
+          "field": "price_label",
+          "rect": [
+            3.0,
+            53.97,
+            24.0,
+            6.0
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_value",
+          "kind": "text",
+          "field": "price_value",
+          "rect": [
+            27.0,
+            51.0,
+            58.0,
+            11.0
+          ],
+          "size": 30.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "old_price",
+          "kind": "text",
+          "field": "old_price",
+          "rect": [
+            3.0,
+            46.5,
+            29.0,
+            4.5
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "320b3cd37659",
+      "template_id": "wide-115x65",
+      "name": "【示範非現價】大型單品",
+      "width_mm": 115.0,
+      "height_mm": 65.0,
+      "mode": "single",
+      "safe_margin_mm": 3.0,
+      "product": {
+        "brand": "SONY",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "65吋 Mini LED 4K 智慧顯示器",
+        "model": "Y-65XR50",
+        "features": "BRAVIA 5",
+        "dimensions": "不含底座 1447 × 832 × 58 mm",
+        "price": "45900",
+        "old_price": "59900",
+        "price_label": "特價",
+        "variants": [
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          },
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          }
+        ],
+        "components": "",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            3.0,
+            3.0,
+            28.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            78.0,
+            3.0,
+            34.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            3.0,
+            14.0,
+            109.0,
+            14.0
+          ],
+          "size": 18.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "model",
+          "kind": "text",
+          "field": "model",
+          "rect": [
+            3.0,
+            28.0,
+            109.0,
+            5.0
+          ],
+          "size": 11.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "features",
+          "kind": "text",
+          "field": "features",
+          "rect": [
+            3.0,
+            35.0,
+            109.0,
+            13.0
+          ],
+          "size": 10.5,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_label",
+          "kind": "text",
+          "field": "price_label",
+          "rect": [
+            48.0,
+            53.24,
+            24.0,
+            6.0
+          ],
+          "size": 9.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_value",
+          "kind": "text",
+          "field": "price_value",
+          "rect": [
+            72.0,
+            50.0,
+            37.0,
+            12.0
+          ],
+          "size": 32.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "old_price",
+          "kind": "text",
+          "field": "old_price",
+          "rect": [
+            3.0,
+            44.8,
+            45.0,
+            4.5
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "83033952e7b3",
+      "template_id": "display-210x130",
+      "name": "【示範非現價】大型展示",
+      "width_mm": 210.0,
+      "height_mm": 130.0,
+      "mode": "single",
+      "safe_margin_mm": 6.0,
+      "product": {
+        "brand": "SAMSUNG",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "655L 美式對開系列冰箱 夜幕黑",
+        "model": "RS70F65Q4FT",
+        "features": "AI 智慧節能模式\nSpaceMax 薄窄邊框\n壓縮機 20 年保固",
+        "dimensions": "寬912 × 高1780 × 深716 mm",
+        "price": "59900",
+        "old_price": "",
+        "price_label": "訂價",
+        "variants": [
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          },
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          }
+        ],
+        "components": "",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            6.0,
+            3.0,
+            45.0,
+            15.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            154.0,
+            3.0,
+            50.0,
+            15.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            6.0,
+            24.0,
+            198.0,
+            23.0
+          ],
+          "size": 28.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "model",
+          "kind": "text",
+          "field": "model",
+          "rect": [
+            6.0,
+            47.0,
+            198.0,
+            9.0
+          ],
+          "size": 18.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "features",
+          "kind": "text",
+          "field": "features",
+          "rect": [
+            6.0,
+            70.0,
+            198.0,
+            27.0
+          ],
+          "size": 15.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "dimensions",
+          "kind": "text",
+          "field": "dimensions",
+          "rect": [
+            6.0,
+            56.0,
+            198.0,
+            9.0
+          ],
+          "size": 15.0,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_label",
+          "kind": "text",
+          "field": "price_label",
+          "rect": [
+            89.0,
+            109.21,
+            24.0,
+            6.0
+          ],
+          "size": 14.0,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_value",
+          "kind": "text",
+          "field": "price_value",
+          "rect": [
+            113.0,
+            103.0,
+            86.0,
+            23.0
+          ],
+          "size": 52.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "old_price",
+          "kind": "text",
+          "field": "old_price",
+          "rect": [
+            6.0,
+            97.8,
+            45.0,
+            4.5
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "f24c73978649",
+      "template_id": "optional-60x65",
+      "name": "【示範非現價】窄型備選",
+      "width_mm": 60.0,
+      "height_mm": 65.0,
+      "mode": "single",
+      "safe_margin_mm": 3.0,
+      "product": {
+        "brand": "SONY",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "65吋 Mini LED 4K 智慧顯示器",
+        "model": "Y-65XR50",
+        "features": "BRAVIA 5",
+        "dimensions": "不含底座 1447 × 832 × 58 mm",
+        "price": "45900",
+        "old_price": "59900",
+        "price_label": "特價",
+        "variants": [
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          },
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          }
+        ],
+        "components": "",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            3.0,
+            3.0,
+            21.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            35.0,
+            3.0,
+            22.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            3.0,
+            14.0,
+            54.0,
+            12.0
+          ],
+          "size": 13.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "model",
+          "kind": "text",
+          "field": "model",
+          "rect": [
+            3.0,
+            29.0,
+            54.0,
+            5.0
+          ],
+          "size": 10.5,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "features",
+          "kind": "text",
+          "field": "features",
+          "rect": [
+            3.0,
+            36.0,
+            54.0,
+            9.0
+          ],
+          "size": 9.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_label",
+          "kind": "text",
+          "field": "price_label",
+          "rect": [
+            3.0,
+            53.24,
+            21.42,
+            6.0
+          ],
+          "size": 8.0,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_value",
+          "kind": "text",
+          "field": "price_value",
+          "rect": [
+            24.42,
+            50.0,
+            29.58,
+            12.0
+          ],
+          "size": 24.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "old_price",
+          "kind": "text",
+          "field": "old_price",
+          "rect": [
+            3.0,
+            45.5,
+            26.42,
+            4.5
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "a7c7680ec753",
+      "template_id": "variants-90x60",
+      "name": "【示範非現價】同系列多型號",
+      "width_mm": 90.0,
+      "height_mm": 60.0,
+      "mode": "variants",
+      "safe_margin_mm": 3.0,
+      "product": {
+        "brand": "SONY",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "耳式真無線藍牙耳機",
+        "model": "",
+        "features": "",
+        "dimensions": "",
+        "price": "",
+        "old_price": "",
+        "price_label": "特價",
+        "variants": [
+          {
+            "model": "WF-C510",
+            "description": "續航 22 小時",
+            "price": "1990"
+          },
+          {
+            "model": "WF-C710N",
+            "description": "降噪功能",
+            "price": "3490"
+          }
+        ],
+        "components": "",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            3.0,
+            3.0,
+            25.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            59.0,
+            3.0,
+            28.0,
+            8.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            3.0,
+            14.0,
+            84.0,
+            8.0
+          ],
+          "size": 15.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "variant_1_model",
+          "kind": "text",
+          "field": "variant_1_model",
+          "rect": [
+            3.0,
+            25.0,
+            48.72,
+            5.1
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "variant_1_desc",
+          "kind": "text",
+          "field": "variant_1_desc",
+          "rect": [
+            3.0,
+            31.2,
+            55.44,
+            5.0
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "variant_1_price",
+          "kind": "text",
+          "field": "variant_1_price",
+          "rect": [
+            54.24,
+            26.5,
+            32.76,
+            8.5
+          ],
+          "size": 16.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "variant_2_model",
+          "kind": "text",
+          "field": "variant_2_model",
+          "rect": [
+            3.0,
+            42.0,
+            48.72,
+            5.1
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "variant_2_desc",
+          "kind": "text",
+          "field": "variant_2_desc",
+          "rect": [
+            3.0,
+            48.2,
+            55.44,
+            5.0
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "variant_2_price",
+          "kind": "text",
+          "field": "variant_2_price",
+          "rect": [
+            54.24,
+            43.5,
+            32.76,
+            8.5
+          ],
+          "size": 16.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    },
+    {
+      "id": "0ffa27a12dc0",
+      "template_id": "bundle-210x130",
+      "name": "【示範非現價】組合商品",
+      "width_mm": 210.0,
+      "height_mm": 130.0,
+      "mode": "bundle",
+      "safe_margin_mm": 6.0,
+      "product": {
+        "brand": "YAMAHA",
+        "brand_mode": "logo",
+        "brand_text": "",
+        "custom_logo": "",
+        "name": "4～8坪 入門聆聽音響組",
+        "model": "",
+        "features": "支援 CD／AirPlay／藍牙",
+        "dimensions": "",
+        "price": "41900",
+        "old_price": "46900",
+        "price_label": "組合特價",
+        "variants": [
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          },
+          {
+            "model": "",
+            "description": "",
+            "price": ""
+          }
+        ],
+        "components": "CD-NT670 + A670\nTANGENT X4 書架喇叭",
+        "custom": {},
+        "sku": "",
+        "location": "",
+        "notes": "舊價格牌的範例內容，僅供版型操作測試；請勿作為現行售價。"
+      },
+      "elements": [
+        {
+          "id": "store_logo",
+          "kind": "image",
+          "field": "store_logo",
+          "rect": [
+            6.0,
+            3.0,
+            45.0,
+            15.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": true
+        },
+        {
+          "id": "brand_logo",
+          "kind": "image",
+          "field": "brand_logo",
+          "rect": [
+            154.0,
+            3.0,
+            50.0,
+            15.0
+          ],
+          "size": 10.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "name",
+          "kind": "text",
+          "field": "name",
+          "rect": [
+            6.0,
+            24.0,
+            198.0,
+            15.0
+          ],
+          "size": 28.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "features",
+          "kind": "text",
+          "field": "features",
+          "rect": [
+            6.0,
+            79.0,
+            198.0,
+            21.0
+          ],
+          "size": 14.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "components",
+          "kind": "text",
+          "field": "components",
+          "rect": [
+            6.0,
+            43.0,
+            198.0,
+            30.0
+          ],
+          "size": 14.0,
+          "color": "#121212",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_label",
+          "kind": "text",
+          "field": "price_label",
+          "rect": [
+            88.0,
+            110.4,
+            24.0,
+            6.0
+          ],
+          "size": 13.0,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "price_value",
+          "kind": "text",
+          "field": "price_value",
+          "rect": [
+            112.0,
+            105.0,
+            87.0,
+            20.0
+          ],
+          "size": 48.0,
+          "color": "#FF0000",
+          "align": "right",
+          "visible": true,
+          "locked": false
+        },
+        {
+          "id": "old_price",
+          "kind": "text",
+          "field": "old_price",
+          "rect": [
+            6.0,
+            99.8,
+            45.0,
+            4.5
+          ],
+          "size": 8.5,
+          "color": "#595959",
+          "align": "left",
+          "visible": true,
+          "locked": false
+        }
+      ]
+    }
+  ],
+  "current_id": "3c3644e13dc0",
+  "queue": [
+    {
+      "card_id": "3c3644e13dc0",
+      "qty": 1
+    },
+    {
+      "card_id": "84d053cd919d",
+      "qty": 1
+    },
+    {
+      "card_id": "320b3cd37659",
+      "qty": 1
+    },
+    {
+      "card_id": "83033952e7b3",
+      "qty": 1
+    },
+    {
+      "card_id": "f24c73978649",
+      "qty": 1
+    },
+    {
+      "card_id": "a7c7680ec753",
+      "qty": 1
+    },
+    {
+      "card_id": "0ffa27a12dc0",
+      "qty": 1
+    }
+  ],
+  "assets": {},
+  "snippets": [
+    {
+      "name": "寬高深尺寸",
+      "text": "寬＿＿ × 高＿＿ × 深＿＿ mm"
+    },
+    {
+      "name": "不含底座尺寸",
+      "text": "不含底座：寬＿＿ × 高＿＿ × 深＿＿ mm"
+    },
+    {
+      "name": "洗衣容量",
+      "text": "洗衣容量：＿＿ kg"
+    },
+    {
+      "name": "冰箱容量",
+      "text": "總容量：＿＿ L"
+    }
+  ],
+  "print": {
+    "paper": "A4",
+    "orientation": "自動",
+    "margin_mm": 5,
+    "gap_mm": 2,
+    "crop_marks": true
+  }
+}
