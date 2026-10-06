@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import ctypes
 import math
 import os
 import sys
@@ -54,6 +55,78 @@ def insert_numpad_ascii(event, allow_decimal=True):
     return "break"
 
 
+class NumericInput:
+    """Keep the IME away from focused number fields without changing text fields."""
+
+    def __init__(self):
+        self._previous_contexts = {}
+        self._associate = None
+        if sys.platform == "win32":
+            try:
+                self._imm32 = ctypes.WinDLL("imm32", use_last_error=True)
+                self._associate = self._imm32.ImmAssociateContext
+                self._associate.argtypes = (ctypes.c_void_p, ctypes.c_void_p)
+                self._associate.restype = ctypes.c_void_p
+            except (OSError, AttributeError):
+                self._associate = None
+
+    @staticmethod
+    def _normalise(text, allow_decimal):
+        text = unicodedata.normalize("NFKC", text)
+        if allow_decimal:
+            for mark in ("。", "﹒", "·", "，"):
+                text = text.replace(mark, ".")
+        return text
+
+    def bind(self, widget, allow_decimal=True):
+        widget.bind("<KeyPress>", lambda event: insert_numpad_ascii(event, allow_decimal), add="+")
+        widget.bind("<KeyRelease>", lambda event: self._normalise_widget(event.widget, allow_decimal), add="+")
+        widget.bind("<FocusIn>", self._focus_in, add="+")
+        widget.bind("<FocusOut>", lambda event: self._focus_out(event, allow_decimal), add="+")
+        widget.bind("<Destroy>", self._focus_out, add="+")
+
+    def _normalise_widget(self, widget, allow_decimal):
+        value = widget.get()
+        normalised = self._normalise(value, allow_decimal)
+        if normalised == value:
+            return
+        cursor = widget.index(tk.INSERT)
+        selection = None
+        if widget.selection_present():
+            selection = (widget.index("sel.first"), widget.index("sel.last"))
+        widget.delete(0, tk.END)
+        widget.insert(0, normalised)
+        widget.icursor(len(self._normalise(value[:cursor], allow_decimal)))
+        if selection is not None:
+            start, end = selection
+            widget.selection_range(len(self._normalise(value[:start], allow_decimal)),
+                                   len(self._normalise(value[:end], allow_decimal)))
+
+    def _focus_in(self, event):
+        if self._associate is None:
+            return
+        widget = event.widget
+        if widget not in self._previous_contexts:
+            hwnd = widget.winfo_id()
+            self._previous_contexts[widget] = (hwnd, self._associate(hwnd, None))
+
+    def _focus_out(self, event, allow_decimal=True):
+        if event.type != tk.EventType.Destroy:
+            self._normalise_widget(event.widget, allow_decimal)
+        if self._associate is None:
+            return
+        previous = self._previous_contexts.pop(event.widget, None)
+        if previous is not None:
+            hwnd, context = previous
+            self._associate(hwnd, context)
+
+    def restore_all(self):
+        if self._associate is not None:
+            for hwnd, previous in self._previous_contexts.values():
+                self._associate(hwnd, previous)
+        self._previous_contexts.clear()
+
+
 class NumericFloatDialog(simpledialog.Dialog):
     def __init__(self, parent, title, prompt, initialvalue, minvalue, maxvalue):
         self.prompt = prompt
@@ -61,6 +134,7 @@ class NumericFloatDialog(simpledialog.Dialog):
         self.minvalue = minvalue
         self.maxvalue = maxvalue
         self.parsed = None
+        self.numeric_input = parent.numeric_input
         super().__init__(parent, title)
 
     def body(self, master):
@@ -69,7 +143,7 @@ class NumericFloatDialog(simpledialog.Dialog):
         self.entry.pack(fill="x")
         self.entry.insert(0, f"{self.initialvalue:g}")
         self.entry.selection_range(0, "end")
-        self.entry.bind("<KeyPress>", insert_numpad_ascii, add="+")
+        self.numeric_input.bind(self.entry)
         return self.entry
 
     def validate(self):
@@ -125,11 +199,17 @@ class ScrolledFrame(ttk.Frame):
 class PriceCardApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("集雅社價格牌產生器  •  v1.2")
-        try:self.iconbitmap(str(core.resources() / "app.ico"))
+        self.title("集雅社價格牌產生器  •  v1.2.1")
+        try:
+            icon = str(core.resources() / "app.ico")
+            self.iconbitmap(icon)
+            self.iconbitmap(default=icon)
         except Exception:pass
         self.geometry("1480x900")
         self.minsize(1080, 680)
+        if sys.platform == "win32":
+            self.state("zoomed")
+        self.numeric_input = NumericInput()
         self.option_add("*Font", "{Microsoft JhengHei} 10" if sys.platform == "win32" else "TkDefaultFont 10")
         self.style = ttk.Style(self)
         if "clam" in self.style.theme_names(): self.style.theme_use("clam")
@@ -280,7 +360,7 @@ class PriceCardApp(tk.Tk):
         ent.pack(side="left", fill="x", expand=True)
         ent.bind("<Control-KeyPress>", self._control_shortcut)
         if numeric:
-            ent.bind("<KeyPress>", insert_numpad_ascii, add="+")
+            self.numeric_input.bind(ent)
         return ent
 
     def _product_entry(self, parent, key, label):
@@ -369,7 +449,7 @@ class PriceCardApp(tk.Tk):
                 entry = ttk.Entry(row, textvariable=v, width=10)
                 entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
                 entry.bind("<Control-KeyPress>", self._control_shortcut)
-                entry.bind("<KeyPress>", insert_numpad_ascii, add="+")
+                self.numeric_input.bind(entry)
         colors = ttk.Frame(tab);colors.pack(fill="x", pady=(7, 2))
         foreground = ttk.Frame(colors);foreground.pack(side="left", fill="x", expand=True, padx=(0, 4))
         ttk.Label(foreground, text="方塊顏色").pack(anchor="w")
@@ -417,7 +497,7 @@ class PriceCardApp(tk.Tk):
         self.qty = tk.IntVar(value=1)
         qty_entry = tk.Spinbox(row, from_=1, to=1000, textvariable=self.qty, width=6)
         qty_entry.pack(side="left", padx=5)
-        qty_entry.bind("<KeyPress>", lambda event: insert_numpad_ascii(event, False), add="+")
+        self.numeric_input.bind(qty_entry, allow_decimal=False)
         ttk.Button(row, text="加入目前價格牌", command=self.add_queue).pack(side="left", padx=5)
         self.queue_list = tk.Listbox(tab, height=12, exportselection=False)
         self.queue_list.pack(fill="x", pady=10)
@@ -1213,6 +1293,7 @@ class PriceCardApp(tk.Tk):
     def on_close(self):
         if self.save_job:self.after_cancel(self.save_job)
         self._autosave()
+        self.numeric_input.restore_all()
         self.destroy()
 
 
