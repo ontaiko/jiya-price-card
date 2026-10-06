@@ -8,6 +8,8 @@ Windows 桌面程式，用來編輯商品價格牌、保存專案，並輸出實
 2. 解壓縮整個 ZIP，保留 `JiYaPriceCard.exe` 與 `_internal` 資料夾的相對位置。
 3. 雙擊 `JiYaPriceCard.exe`。首次開啟不需要網路或 Python。
 
+先前的 v1.1.0 Windows ZIP 漏包 `tkinter`，開啟時會顯示 `No module named 'tkinter'`。請改下載 v1.1.1 或更新版本。
+
 這是 64 位元 Windows 桌面版。程式會在 `%APPDATA%\JiYaPriceCard\autosave.jyp` 自動保存草稿；正式使用時也請從「檔案 → 另存專案」保存 `.jyp` 專案檔。示範專案標示為「非現價」，不可直接當作目前售價使用。
 
 ## 目前功能
@@ -34,7 +36,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe run_app.py
 ```
 
-在 Windows 上建立執行檔可執行 `製作Windows執行檔.bat`。建置產物為 `dist\JiYaPriceCard\JiYaPriceCard.exe`，使用時需要保留整個 `JiYaPriceCard` 資料夾。
+在 Windows 上建立執行檔可執行 `製作Windows執行檔.bat`。腳本會先確認 Python 能啟動 Tk 視窗，打包後檢查 `_tkinter` 與 Tcl/Tk 資料，缺少任一項就停止交付。建置產物為 `dist\JiYaPriceCard\JiYaPriceCard.exe`，使用時需要保留整個 `JiYaPriceCard` 資料夾。
 
 ## 企劃與現況
 
