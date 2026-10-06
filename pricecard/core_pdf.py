@@ -76,11 +76,6 @@ def draw_card(c, card, project, origin_x=0.0, origin_y=0.0):
     c.setStrokeColorRGB(.83, .83, .83)
     c.setLineWidth(.08 * factor)
     c.rect(.25 * factor, .25 * factor, (w - .5) * factor, (h - .5) * factor, stroke=1, fill=0)
-    c.setStrokeColorRGB(*core._rgb(core.COLORS["store"]))
-    c.setLineWidth(.23 * factor)
-    for i in range(5):
-        yy = (7 - i * .8) * factor
-        c.line((w - 2) * factor, yy, (w - .55) * factor, yy)
     warnings = []
     for element in card.get("elements", []):
         if not element.get("visible", True): continue
@@ -94,6 +89,16 @@ def draw_card(c, card, project, origin_x=0.0, origin_y=0.0):
         left = x * factor
         bottom = (h - y - eh) * factor
         rw, rh = ew * factor, eh * factor
+        if element.get("kind") == "stripes":
+            try: color = core._rgb(element.get("color", core.COLORS["store"]))
+            except ValueError: color = core._rgb(core.COLORS["store"])
+            stroke = min(eh / 5, max(.2, eh * .08)) * factor
+            c.setStrokeColorRGB(*color)
+            c.setLineWidth(stroke)
+            for i in range(5):
+                yy = bottom + stroke / 2 + i * (rh - stroke) / 4
+                c.line(left, yy, left + rw, yy)
+            continue
         if element.get("kind") in ("rectangle", "line"):
             try: color = core._rgb(element.get("color", core.COLORS["store"]))
             except ValueError: color = core._rgb(core.COLORS["store"])
@@ -118,7 +123,8 @@ def draw_card(c, card, project, origin_x=0.0, origin_y=0.0):
             if img:
                 try:
                     c.drawImage(ImageReader(io.BytesIO(img)), left, bottom, rw, rh,
-                                preserveAspectRatio=True, anchor="c", mask="auto")
+                                preserveAspectRatio=element.get("image_fit") != "stretch",
+                                anchor="c", mask="auto")
                 except Exception:
                     warnings.append(f"{label}圖片無法載入")
                 continue
@@ -129,6 +135,12 @@ def draw_card(c, card, project, origin_x=0.0, origin_y=0.0):
                 warnings.append("找不到指定品牌 Logo，改以文字顯示")
                 text = p.get("brand", "")
         else:text = core._field_text(card, element)
+        if element.get("kind") == "text" and element.get("fill"):
+            try:
+                c.setFillColorRGB(*core._rgb(element["fill"]))
+                c.rect(left, bottom, rw, rh, stroke=0, fill=1)
+            except ValueError:
+                warnings.append(f"{label}背景色格式不正確")
         if not text: continue
         size = float(element.get("size", 10))
         if not 4 <= size <= 100:
@@ -151,7 +163,18 @@ def draw_card(c, card, project, origin_x=0.0, origin_y=0.0):
             align = element.get("align", "left")
             tx = left if align == "left" else left + rw - length if align == "right" else left + (rw - length) / 2
             ty = (h - y) * factor - size * .94 - i * leading
-            c.drawString(tx, ty, line)
+            if element.get("bold", False):
+                c.saveState()
+                c.setStrokeColorRGB(*color)
+                c.setLineWidth(max(.12, size * .025))
+                text_object = c.beginText(tx, ty)
+                text_object.setFont(FONT_NAME, size)
+                text_object.setTextRenderMode(2)
+                text_object.textOut(line)
+                c.drawText(text_object)
+                c.restoreState()
+            else:
+                c.drawString(tx, ty, line)
     c.restoreState()
     return list(dict.fromkeys(warnings))
 

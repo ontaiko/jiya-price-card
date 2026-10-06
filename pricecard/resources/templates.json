@@ -6,6 +6,8 @@
   "templates": [
     {
       "id": "compact-90x60",
+      "store_logo_mm": [0, 3, 33, 10],
+      "corner_stripes_mm": [83, 48, 7, 6],
       "name": "小型單品",
       "width_mm": 90,
       "height_mm": 60,
@@ -77,6 +79,8 @@
     },
     {
       "id": "standard-90x65",
+      "store_logo_mm": [0, 3, 30, 10],
+      "corner_stripes_mm": [84, 53, 6, 7],
       "name": "中型單品",
       "width_mm": 90,
       "height_mm": 65,
@@ -148,6 +152,8 @@
     },
     {
       "id": "wide-115x65",
+      "store_logo_mm": [0, 3, 33.5, 10],
+      "corner_stripes_mm": [107.7, 53, 7.3, 6],
       "name": "大型單品",
       "width_mm": 115,
       "height_mm": 65,
@@ -219,6 +225,8 @@
     },
     {
       "id": "display-210x130",
+      "store_logo_mm": [0, 3, 50, 15],
+      "corner_stripes_mm": [195, 99, 15, 15],
       "name": "大型展示",
       "width_mm": 210,
       "height_mm": 130,
@@ -299,6 +307,8 @@
     },
     {
       "id": "optional-60x65",
+      "store_logo_mm": [0, 3, 25, 8],
+      "corner_stripes_mm": [54, 53, 6, 6],
       "name": "窄型備選",
       "width_mm": 60,
       "height_mm": 65,
@@ -370,6 +380,8 @@
     },
     {
       "id": "variants-90x60",
+      "store_logo_mm": [0, 0, 45.7, 13.6],
+      "corner_stripes_mm": [83.5, 49.1, 6.5, 6.9],
       "name": "同系列多型號",
       "width_mm": 90,
       "height_mm": 60,
@@ -432,6 +444,8 @@
     },
     {
       "id": "bundle-210x130",
+      "store_logo_mm": [0, 3, 50, 15],
+      "corner_stripes_mm": [195, 99, 15, 15],
       "name": "組合商品",
       "width_mm": 210,
       "height_mm": 130,

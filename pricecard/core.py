@@ -25,7 +25,8 @@ BRAND_ASSETS = {
     "Whirlpool": "whirlpool.png", "YAMAHA": "yamaha.png",
 }
 FIELD_LABELS = {
-    "store_logo": "集雅社標誌", "brand_logo": "廠牌標誌／文字", "name": "商品名稱",
+    "store_logo": "集雅社標誌", "corner_stripes": "右下五條裝飾",
+    "brand_logo": "廠牌標誌／文字", "name": "商品名稱",
     "model": "型號", "specifications": "重點與尺寸", "features": "商品說明",
     "dimensions": "尺寸說明", "price_label": "價格標籤", "price_value": "售價",
     "old_price": "原價", "components": "組合內容", "variant_1_model": "型號一",
@@ -56,17 +57,92 @@ def new_product() -> dict:
 def _elt(field: str, rect: list[float], size: float, color: str = "text", align: str = "left", kind: str = "text") -> dict:
     return {"id": field, "kind": kind, "field": field, "rect": [round(float(v), 2) for v in rect],
             "size": float(size), "color": COLORS.get(color, color), "align": align,
-            "visible": True, "locked": field == "store_logo"}
+            "visible": True, "locked": False}
+
+
+def _legacy_store_rect(w: float, margin: float) -> list[float]:
+    old_width = 21 if w <= 60 else 25 if w <= 90 else 28 if w <= 115 else 45
+    return [margin, 3, old_width, 8 if w < 150 else 15]
+
+
+def _default_decoration_rect(w: float, h: float) -> list[float]:
+    if w >= 150:
+        width, height, bottom = 15, 15, 16
+    else:
+        width, height, bottom = min(7, w * .1), 6, 6
+    return [round(w - width, 2), round(h - bottom - height, 2), width, height]
+
+
+def _reserve_corner_space(elements: list[dict], spec: dict, only_defaults: bool) -> bool:
+    stripe = next((el for el in elements if el.get("field") == "corner_stripes"), None)
+    if stripe is None:
+        return False
+    sx, sy, _, sh = map(float, stripe["rect"])
+    fields = {field["name"]: field["rect_mm"] for field in spec["fields"]}
+    old_rects = {}
+    if "price" in fields:
+        x, y, width, height = map(float, fields["price"])
+        label_width = min(24, width * .42)
+        old_rects["price_value"] = [x + label_width, y, width - label_width, height]
+    if "variant_2" in fields:
+        x, y, width, _ = map(float, fields["variant_2"])
+        old_rects["variant_2_price"] = [x + width * .61, y + 1.5, width * .39, 8.5]
+    changed = False
+    for element in elements:
+        expected = old_rects.get(element.get("field"))
+        if expected is None:
+            continue
+        rect = element["rect"]
+        if only_defaults and [round(float(v), 2) for v in rect] != [round(v, 2) for v in expected]:
+            continue
+        x, y, width, height = map(float, rect)
+        if y >= sy + sh or y + height <= sy:
+            continue
+        new_width = round(min(width, sx - 2 - x), 2)
+        if new_width > 0 and new_width < width:
+            rect[2] = new_width
+            changed = True
+    return changed
+
+
+def upgrade_visual_elements(card: dict) -> bool:
+    """Convert v1 fixed decoration and locked logo to editable elements."""
+    changed = False
+    spec = next((item for item in builtin_specs() if item["id"] == card.get("template_id")), None)
+    w, h = float(card["width_mm"]), float(card["height_mm"])
+    for element in card.get("elements", []):
+        if element.get("field") != "store_logo":
+            continue
+        if element.get("locked"):
+            element["locked"] = False
+            changed = True
+        if element.get("image_fit") != "stretch":
+            element["image_fit"] = "stretch"
+            changed = True
+        if spec and [round(float(v), 2) for v in element["rect"]] == _legacy_store_rect(w, float(card.get("safe_margin_mm", 3))):
+            element["rect"] = copy.deepcopy(spec["store_logo_mm"])
+            changed = True
+    if not any(el.get("field") == "corner_stripes" for el in card.get("elements", [])):
+        original_size = spec and (w, h) == (float(spec["width_mm"]), float(spec["height_mm"]))
+        rect = copy.deepcopy(spec["corner_stripes_mm"] if original_size else _default_decoration_rect(w, h))
+        decoration = _elt("corner_stripes", rect, 10, "store", kind="stripes")
+        card.setdefault("elements", []).insert(0, decoration)
+        changed = True
+    if spec and _reserve_corner_space(card["elements"], spec, only_defaults=True):
+        changed = True
+    return changed
 
 
 def template_from_spec(s: dict) -> dict:
     w, h = float(s["width_mm"]), float(s["height_mm"])
     margin = float(s["safe_margin_mm"])
     brand_w = 22 if w <= 60 else 28 if w <= 90 else 34 if w <= 115 else 50
-    store_w = 21 if w <= 60 else 25 if w <= 90 else 28 if w <= 115 else 45
     logo_h = 8 if w < 150 else 15
+    store_logo = _elt("store_logo", s["store_logo_mm"], 10, kind="image")
+    store_logo["image_fit"] = "stretch"
     elements = [
-        _elt("store_logo", [margin, 3, store_w, logo_h], 10, kind="image"),
+        _elt("corner_stripes", s["corner_stripes_mm"], 10, "store", kind="stripes"),
+        store_logo,
         _elt("brand_logo", [w - margin - brand_w, 3, brand_w, logo_h], 10, kind="image"),
     ]
     fieldrect = {f["name"]: f["rect_mm"] for f in s["fields"]}
@@ -95,6 +171,7 @@ def template_from_spec(s: dict) -> dict:
                 _elt(f"variant_{n}_desc", [x, y + 6.2, rw * .66, 5], s["body_pt"], "secondary"),
                 _elt(f"variant_{n}_price", [x + rw * .61, y + 1.5, rw * .39, 8.5], s["price_pt"], "price", "right"),
             ])
+    _reserve_corner_space(elements, s, only_defaults=False)
     return {"id": s["id"], "name": s["name"], "width_mm": w, "height_mm": h,
             "mode": s["mode"], "safe_margin_mm": margin, "elements": elements, "builtin": True}
 
@@ -162,6 +239,25 @@ def move_element(element: dict, dx: float, dy: float, card: dict) -> bool:
     return True
 
 
+def resized_rect(rect: list[float], corner: str, dx: float, dy: float,
+                 card: dict, minimum: float = .5) -> list[float]:
+    """Resize from one corner while keeping its opposite corner fixed."""
+    left, top, width, height = map(float, rect)
+    right, bottom = left + width, top + height
+    card_width, card_height = float(card["width_mm"]), float(card["height_mm"])
+    if corner not in ("nw", "ne", "sw", "se"):
+        raise ValueError("不支援的縮放角落")
+    if "w" in corner:
+        left = max(0, min(right - minimum, left + dx))
+    else:
+        right = min(card_width, max(left + minimum, right + dx))
+    if "n" in corner:
+        top = max(0, min(bottom - minimum, top + dy))
+    else:
+        bottom = min(card_height, max(top + minimum, bottom + dy))
+    return [round(left, 2), round(top, 2), round(right - left, 2), round(bottom - top, 2)]
+
+
 def save_project(path: os.PathLike, project: dict) -> None:
     # Only JSON values are accepted; no pickle, scripts, or external image paths.
     if project.get("version") != 1:
@@ -182,6 +278,10 @@ def load_project(path: os.PathLike) -> dict:
     p.setdefault("templates", {}); p.setdefault("assets", {}); p.setdefault("queue", [])
     p.setdefault("snippets", new_project()["snippets"])
     p.setdefault("print", new_project()["print"])
+    for card in p["cards"]:
+        upgrade_visual_elements(card)
+    for template in p["templates"].values():
+        upgrade_visual_elements(template)
     return p
 
 

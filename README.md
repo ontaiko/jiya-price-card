@@ -4,7 +4,7 @@ Windows 桌面程式，用來編輯商品價格牌、保存專案，並輸出實
 
 ## 下載與開啟
 
-1. 從 Releases 下載 `JiYaPriceCard-Windows-x64-v1.0.0.zip`。
+1. 從 Releases 下載最新的 `JiYaPriceCard-Windows-x64-*.zip`。
 2. 解壓縮整個 ZIP，保留 `JiYaPriceCard.exe` 與 `_internal` 資料夾的相對位置。
 3. 雙擊 `JiYaPriceCard.exe`。首次開啟不需要網路或 Python。
 
@@ -14,7 +14,9 @@ Windows 桌面程式，用來編輯商品價格牌、保存專案，並輸出實
 
 - 五種成品尺寸、七種內建版型，另可建立空白版型及另存自訂版型。
 - 集中輸入商品資料、切換品牌 Logo／文字、上傳自訂圖片。
-- 在預覽中拖移方塊，使用方向鍵以 0.1 mm 微調，`Shift` 加方向鍵以 1 mm 移動；可調整座標、大小、字級、顏色和對齊。
+- 左上集雅社標誌及右下五條裝飾採各版型原稿的尺寸，並可像其他方塊一樣選取、拖移及縮放。
+- 在預覽中拖移方塊或四角縮放；方向鍵以 0.1 mm 微調，`Shift` 加方向鍵以 1 mm 移動。右側可調整座標、大小、字級、粗體、文字背景色、顏色和對齊。
+- 中文輸入法下的 `。`、`．` 可作為數值小數點，也有「輸入小數點」按鈕。`Ctrl+Z` 復原、`Ctrl+Y` 或 `Ctrl+Shift+Z` 重做，頂端亦有按鈕。
 - 保存及重開專案、匯入匯出自訂版型、復原與重做單張價格牌編輯。
 - 匯出單張實際尺寸 PDF，或將列印清單排在 A4／A3 紙張上；輸出前提示文字溢出等問題。
 
@@ -24,7 +26,7 @@ Windows 桌面程式，用來編輯商品價格牌、保存專案，並輸出實
 
 程式入口為 `run_app.py`，介面位於 `pricecard/gui.py`，資料及版型位於 `pricecard/core.py`，PDF 繪製位於 `pricecard/core_pdf.py`。內建版型在 `pricecard/resources/templates.json`。請閱讀[使用說明](使用說明.md)及[第三方素材與套件](第三方素材與套件.md)。
 
-原始碼開發需要 64 位元 Python 3.12 或更新版本：
+原始碼開發需要 64 位元 Python 3.11 或更新版本：
 
 ```powershell
 python -m venv .venv
