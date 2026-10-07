@@ -242,7 +242,7 @@ class ProjectManager(tk.Toplevel):
 
     def refresh(self):
         self.tree.delete(*self.tree.get_children())
-        for record in sorted(self.app.workspace.records(self.deleted.get()), key=lambda x: x["name"].casefold):
+        for record in sorted(self.app.workspace.records(self.deleted.get()), key=lambda x: x["name"].casefold()):
             self.tree.insert("", "end", iid=record["id"],
                              values=(record["name"], record.get("updated_at", "")[:16].replace("T", " ")))
 
@@ -334,7 +334,7 @@ class ScrolledFrame(ttk.Frame):
 class PriceCardApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("集雅社價格牌產生器  •  v1.3.0")
+        self.title("集雅社價格牌產生器  •  v1.3.1")
         try:
             icon = str(core.resources() / "app.ico")
             self.iconbitmap(icon)

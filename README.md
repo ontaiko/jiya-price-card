@@ -12,6 +12,8 @@ Windows 桌面程式，用來編輯商品價格牌、保存專案，並輸出實
 
 先前的 v1.1.0 Windows ZIP 漏包 `tkinter`，開啟時會顯示 `No module named 'tkinter'`。請改下載 v1.1.1 或更新版本。
 
+v1.3.0 的廠商清單在已有多個廠商時會於啟動時發生排序錯誤；請下載 v1.3.1 或更新版本。
+
 這是 64 位元 Windows 桌面版。啟動時會開啟廠商專案選擇視窗；每個廠商的價格牌自動保存於 `%APPDATA%\JiYaPriceCard\projects`。舊版 `%APPDATA%\JiYaPriceCard\autosave.jyp` 首次啟動時會複製為「舊專案」，原檔保留。可從「檔案 → 匯出專案備份」另存 `.jyp`。示範專案標示為「非現價」，不可直接當作目前售價使用。
 
 ## 目前功能
