@@ -106,23 +106,27 @@ def _reserve_corner_space(elements: list[dict], spec: dict, only_defaults: bool)
 
 
 def upgrade_visual_elements(card: dict) -> bool:
-    """Convert v1 fixed decoration and locked logo to editable elements."""
+    """Upgrade old fixed artwork once, preserving later user edits and locks."""
     changed = False
     spec = next((item for item in builtin_specs() if item["id"] == card.get("template_id")), None)
     w, h = float(card["width_mm"]), float(card["height_mm"])
+    has_corner_stripes = any(el.get("field") == "corner_stripes" for el in card.get("elements", []))
+    old_logo_rect = _legacy_store_rect(w, float(card.get("safe_margin_mm", 3)))
     for element in card.get("elements", []):
         if element.get("field") != "store_logo":
             continue
-        if element.get("locked"):
+        legacy_logo = (element.get("id") == "store_logo" and not has_corner_stripes
+                       and element.get("image_fit") != "stretch")
+        if legacy_logo and element.get("locked"):
             element["locked"] = False
             changed = True
         if element.get("image_fit") != "stretch":
             element["image_fit"] = "stretch"
             changed = True
-        if spec and [round(float(v), 2) for v in element["rect"]] == _legacy_store_rect(w, float(card.get("safe_margin_mm", 3))):
+        if legacy_logo and spec and [round(float(v), 2) for v in element["rect"]] == old_logo_rect:
             element["rect"] = copy.deepcopy(spec["store_logo_mm"])
             changed = True
-    if not any(el.get("field") == "corner_stripes" for el in card.get("elements", [])):
+    if not has_corner_stripes:
         original_size = spec and (w, h) == (float(spec["width_mm"]), float(spec["height_mm"]))
         rect = copy.deepcopy(spec["corner_stripes_mm"] if original_size else _default_decoration_rect(w, h))
         decoration = _elt("corner_stripes", rect, 10, "store", kind="stripes")

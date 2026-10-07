@@ -334,7 +334,7 @@ class ScrolledFrame(ttk.Frame):
 class PriceCardApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("集雅社價格牌產生器  •  v1.3.1")
+        self.title("集雅社價格牌產生器  •  v1.3.2")
         try:
             icon = str(core.resources() / "app.ico")
             self.iconbitmap(icon)
@@ -591,6 +591,7 @@ class PriceCardApp(tk.Tk):
         ttk.Label(tab, textvariable=self.selected_label, font=("Microsoft JhengHei", 11, "bold")).pack(anchor="w", pady=(14, 4))
         grid = ttk.Frame(tab);grid.pack(fill="x")
         self.prop_vars = {}
+        self.geometry_entries = []
         for pair in (("X", "Y"), ("寬", "高"), ("字級 pt",)):
             row = ttk.Frame(grid);row.pack(fill="x", pady=3)
             for label in pair:
@@ -600,6 +601,7 @@ class PriceCardApp(tk.Tk):
                 entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
                 entry.bind("<Control-KeyPress>", self._control_shortcut)
                 self.numeric_input.bind(entry)
+                self.geometry_entries.append(entry)
                 entry.bind("<Return>", self.apply_properties, add="+")
                 entry.bind("<FocusOut>", self.apply_properties, add="+")
         colors = ttk.Frame(tab);colors.pack(fill="x", pady=(7, 2))
@@ -636,7 +638,7 @@ class PriceCardApp(tk.Tk):
         flags = ttk.Frame(tab);flags.pack(fill="x", pady=8)
         self.visible_var = tk.BooleanVar(value=True);self.locked_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(flags, text="顯示", variable=self.visible_var, command=self.apply_properties).pack(side="left")
-        ttk.Checkbutton(flags, text="鎖定", variable=self.locked_var, command=self.apply_properties).pack(side="left", padx=20)
+        ttk.Checkbutton(flags, text="鎖定", variable=self.locked_var, command=self.toggle_lock).pack(side="left", padx=20)
         self.property_error = tk.StringVar(value="")
         ttk.Label(tab, textvariable=self.property_error, foreground="#B70031", wraplength=290).pack(anchor="w")
         alignrow = ttk.Frame(tab);alignrow.pack(fill="x", pady=8)
@@ -865,8 +867,19 @@ class PriceCardApp(tk.Tk):
         self.align_var.set(el.get("align", "left"))
         self.visible_var.set(el.get("visible", True))
         self.locked_var.set(el.get("locked", False))
+        for entry in self.geometry_entries:
+            entry.configure(state="disabled" if el.get("locked") else "normal")
         self.property_error.set("")
         self._loading_properties = False
+
+    def toggle_lock(self):
+        el = self.element()
+        if el is None:return
+        locked = self.locked_var.get()
+        if bool(el.get("locked")) == locked:return
+        self._snapshot()
+        el["locked"] = locked
+        self.refresh_elements();self.draw_selection();self.schedule_render();self.schedule_save()
 
     def apply_properties(self, _event=None):
         if self._loading_properties or self._loading:return
@@ -874,6 +887,7 @@ class PriceCardApp(tk.Tk):
         if el is None: return
         try:
             rect = [round(parse_number(self.prop_vars[k].get()), 2) for k in ("X", "Y", "寬", "高")]
+            if el.get("locked"):rect = list(el["rect"])
             size = parse_number(self.prop_vars["字級 pt"].get())
             color = self.prop_vars["顏色"].get().strip()
             core._rgb(color)
@@ -886,7 +900,7 @@ class PriceCardApp(tk.Tk):
             self.property_error.set("請檢查座標、大小、字級及 #RRGGBB 色彩；方塊須在成品內。")
             return
         proposed = {"rect": rect, "size": size, "color": color, "align": self.align_var.get(),
-                    "visible": self.visible_var.get(), "locked": self.locked_var.get()}
+                    "visible": self.visible_var.get()}
         if el.get("kind") == "text":
             proposed["bold"] = self.bold_var.get()
             proposed["fill"] = background or None
@@ -937,6 +951,7 @@ class PriceCardApp(tk.Tk):
         rect = [m, round(self.card["height_mm"] * .4, 1), min(54, self.card["width_mm"] - 2 * m), 9]
         el = core._elt(field or "asset_image", rect, 11)
         el["id"] = key;el["label"] = choice
+        if field == "store_logo":el["image_fit"] = "stretch"
         if field in ("store_logo", "brand_logo"):
             el["kind"] = "image"
             el["rect"][3] = 7
@@ -974,7 +989,7 @@ class PriceCardApp(tk.Tk):
 
     def layer(self, direction):
         el = self.element()
-        if el is None:return
+        if el is None or el.get("locked"):return
         elements = self.card["elements"]
         i = elements.index(el);j = i + direction
         if not (0 <= j < len(elements)):return
