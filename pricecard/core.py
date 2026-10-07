@@ -401,4 +401,4 @@ def plan_sheet(cards: list[dict], paper: str, orientation: str = "自動",
     return min(candidates, key=lambda item: len(item["pages"]))
 
 
-from .core_pdf import render_card_pdf, export_single, export_sheet  # noqa: E402
+from .core_pdf import render_card_pdf, export_single, export_sheet, export_sheet_multi  # noqa: E402

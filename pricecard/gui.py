@@ -18,12 +18,7 @@ import pypdfium2 as pdfium
 from PIL import Image, ImageTk
 
 from . import core
-
-
-def autosave_path() -> Path:
-    folder = Path(os.environ.get("APPDATA") or Path.home()) / "JiYaPriceCard"
-    folder.mkdir(parents=True, exist_ok=True)
-    return folder / "autosave.jyp"
+from .workspace import Workspace
 
 
 def parse_number(value: str) -> float:
@@ -177,6 +172,146 @@ class ElementChoiceDialog(simpledialog.Dialog):
         self.result = self.choice.get()
 
 
+class ListChoiceDialog(simpledialog.Dialog):
+    def __init__(self, parent, title, rows, caption):
+        self.rows = rows
+        self.caption = caption
+        self.result = None
+        super().__init__(parent, title)
+
+    def body(self, master):
+        ttk.Label(master, text=self.caption).pack(anchor="w", pady=(0, 8))
+        frame = ttk.Frame(master)
+        frame.pack(fill="both", expand=True)
+        self.listbox = tk.Listbox(frame, width=58, height=min(18, max(6, len(self.rows))))
+        self.listbox.pack(side="left", fill="both", expand=True)
+        bar = ttk.Scrollbar(frame, orient="vertical", command=self.listbox.yview)
+        bar.pack(side="right", fill="y")
+        self.listbox.configure(yscrollcommand=bar.set)
+        for _, label in self.rows: self.listbox.insert("end", label)
+        if self.rows: self.listbox.selection_set(0)
+        self.listbox.bind("<Double-Button-1>", lambda _e: self.ok())
+        return self.listbox
+
+    def validate(self):
+        if not self.listbox.curselection():
+            messagebox.showinfo("選擇項目", "請先選擇一個項目。", parent=self)
+            return False
+        return True
+
+    def apply(self):
+        self.result = self.rows[self.listbox.curselection()[0]][0]
+
+
+class ProjectManager(tk.Toplevel):
+    def __init__(self, app, startup=False, create_immediately=False):
+        super().__init__(app)
+        self.app = app
+        self.numeric_input = app.numeric_input
+        self.startup = startup
+        self.result = None
+        self.title("選擇廠商專案")
+        self.geometry("620x460")
+        self.minsize(500, 360)
+        self.transient(app)
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        main = ttk.Frame(self, padding=18);main.pack(fill="both", expand=True)
+        ttk.Label(main, text="選擇廠商專案", font=("Microsoft JhengHei", 16, "bold")).pack(anchor="w")
+        ttk.Label(main, text="每個廠商各自保存價格牌；列印清單可跨廠商使用。",
+                  foreground="#666666").pack(anchor="w", pady=(4, 14))
+        self.deleted = tk.BooleanVar(value=False)
+        ttk.Checkbutton(main, text="顯示已刪除區", variable=self.deleted,
+                        command=self.refresh).pack(anchor="w")
+        self.tree = ttk.Treeview(main, columns=("name", "updated"), show="headings", selectmode="browse")
+        self.tree.heading("name", text="廠商");self.tree.heading("updated", text="最後更新")
+        self.tree.column("name", width=310);self.tree.column("updated", width=170)
+        self.tree.pack(fill="both", expand=True, pady=8)
+        self.tree.bind("<Double-Button-1>", lambda _e: self.open_selected())
+        actions = ttk.Frame(main);actions.pack(fill="x", pady=(3, 0))
+        for label, action in (("開啟", self.open_selected), ("新增廠商", self.create),
+                              ("匯入 .jyp", self.import_file), ("重新命名", self.rename),
+                              ("移至已刪除區／還原", self.toggle_archive)):
+            ttk.Button(actions, text=label, command=action).pack(side="left", padx=(0, 5))
+        ttk.Button(main, text="關閉", command=self.destroy).pack(anchor="e", pady=(9, 0))
+        self.refresh()
+        self.grab_set()
+        self.lift()
+        self.focus_force()
+        if create_immediately:self.after(0, self.create)
+        self.wait_window()
+
+    def refresh(self):
+        self.tree.delete(*self.tree.get_children())
+        for record in sorted(self.app.workspace.records(self.deleted.get()), key=lambda x: x["name"].casefold):
+            self.tree.insert("", "end", iid=record["id"],
+                             values=(record["name"], record.get("updated_at", "")[:16].replace("T", " ")))
+
+    def selected_id(self):
+        selected = self.tree.selection()
+        return selected[0] if selected else None
+
+    def open_selected(self):
+        project_id = self.selected_id()
+        if not project_id: return
+        if self.deleted.get():
+            messagebox.showinfo("廠商已刪除", "請先還原此廠商。", parent=self);return
+        self.result = project_id
+        self.destroy()
+
+    def create(self):
+        name = simpledialog.askstring("新增廠商", "廠商名稱：", parent=self)
+        if not name: return
+        card = self.app.choose_new_card(self)
+        if card is None: return
+        project, new_card = card
+        try:
+            project_id = self.app.workspace.create_project(name, project)
+        except Exception as exc:
+            messagebox.showerror("新增廠商", str(exc), parent=self);return
+        self.result = project_id
+        self.destroy()
+
+    def import_file(self):
+        filename = filedialog.askopenfilename(parent=self, title="匯入舊專案副本",
+                                               filetypes=[("集雅社專案", "*.jyp")])
+        if not filename:return
+        initial = Path(filename).stem
+        name = simpledialog.askstring("匯入廠商", "匯入後的廠商名稱：", initialvalue=initial, parent=self)
+        if not name:return
+        try:
+            old = core.load_project(filename)
+            with_queue = bool(old.get("queue")) and messagebox.askyesno(
+                "匯入列印清單", "也匯入這份舊專案的列印清單嗎？\n預設只匯入價格牌。",
+                default=messagebox.NO, parent=self)
+            project_id = self.app.workspace.import_project(Path(filename), name, with_queue)
+        except Exception as exc:
+            messagebox.showerror("匯入專案", str(exc), parent=self);return
+        self.result = project_id
+        self.destroy()
+
+    def rename(self):
+        project_id = self.selected_id()
+        if not project_id:return
+        old = self.app.workspace.record(project_id)["name"]
+        name = simpledialog.askstring("重新命名廠商", "廠商名稱：", initialvalue=old, parent=self)
+        if not name:return
+        try:self.app.workspace.rename_project(project_id, name)
+        except Exception as exc:messagebox.showerror("重新命名", str(exc), parent=self);return
+        self.refresh()
+
+    def toggle_archive(self):
+        project_id = self.selected_id()
+        if not project_id:return
+        try:
+            if self.deleted.get():
+                self.app.workspace.restore_project(project_id)
+            elif messagebox.askyesno("移至已刪除區", "將此廠商移至已刪除區？\n列印清單中的項目會標示為不可列印，還原後可繼續使用。", parent=self):
+                self.app.workspace.archive_project(project_id)
+            else:return
+        except Exception as exc:messagebox.showerror("廠商專案", str(exc), parent=self);return
+        self.refresh()
+
+
 class ScrolledFrame(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -199,7 +334,7 @@ class ScrolledFrame(ttk.Frame):
 class PriceCardApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("集雅社價格牌產生器  •  v1.2.2")
+        self.title("集雅社價格牌產生器  •  v1.3.0")
         try:
             icon = str(core.resources() / "app.ico")
             self.iconbitmap(icon)
@@ -217,9 +352,9 @@ class PriceCardApp(tk.Tk):
         self.style.map("Accent.TButton", background=[("active", "#910027")])
         self.style.configure("Tool.TButton", padding=(8, 8))
         self.style.configure("Pane.TLabelframe", padding=4)
-        try: self.project = core.load_project(autosave_path())
-        except Exception: self.project = core.new_project()
-        self.project_path: Path | None = None
+        self.workspace = Workspace()
+        self.project = core.new_project()
+        self.project_id: str | None = None
         self.selected: str | None = None
         self.preview_image = None
         self.preview_scale = 1.0
@@ -236,10 +371,22 @@ class PriceCardApp(tk.Tk):
         self.drag_rect = None
         self.drag_corner = None
         self._loading = False
+        self._loading_properties = False
         self._last_edit = (None, 0.0)
         self._build()
-        self.load_card()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        try:
+            old_project_id = self.workspace.migrate_legacy()
+        except Exception as exc:
+            messagebox.showerror("舊專案匯入", "舊資料未變更，請先檢查檔案：\n" + str(exc), parent=self)
+            self.destroy();return
+        if old_project_id:
+            new_name = simpledialog.askstring("舊專案已匯入", "舊專案已複製保存。可以為這個廠商重新命名：",
+                                              initialvalue="舊專案", parent=self)
+            if new_name:
+                try:self.workspace.rename_project(old_project_id, new_name)
+                except Exception as exc:messagebox.showerror("廠商名稱", str(exc), parent=self)
+        self.open_project(startup=True)
 
     @property
     def card(self): return core.get_card(self.project)
@@ -247,20 +394,23 @@ class PriceCardApp(tk.Tk):
     def _build(self):
         self.configure(bg="#f3f4f6")
         self._make_menu()
+        vendor = ttk.Frame(self, padding=(16, 8));vendor.pack(fill="x")
+        ttk.Label(vendor, text="目前廠商：", font=("Microsoft JhengHei", 13, "bold")).pack(side="left")
+        self.vendor_label = tk.StringVar(value="尚未選擇")
+        ttk.Label(vendor, textvariable=self.vendor_label, font=("Microsoft JhengHei", 14, "bold"),
+                  foreground="#B70031").pack(side="left", padx=(0, 18))
+        ttk.Button(vendor, text="切換／管理廠商…", command=self.open_project,
+                   style="Accent.TButton").pack(side="left")
         top = ttk.Frame(self, padding=(16, 12))
         top.pack(fill="x")
         ttk.Label(top, text="集雅社  /  價格牌產生器", font=("Microsoft JhengHei", 16, "bold")).pack(side="left", padx=(0, 18))
         ttk.Label(top, text="價格牌").pack(side="left")
         self.card_combo = ttk.Combobox(top, state="readonly", width=22)
         self.card_combo.pack(side="left", padx=(6, 9));self.card_combo.bind("<<ComboboxSelected>>", self._choose_card)
-        ttk.Button(top, text="新增", command=self.new_card, style="Tool.TButton").pack(side="left", padx=2)
+        ttk.Button(top, text="新增價格牌", command=self.new_card, style="Tool.TButton").pack(side="left", padx=2)
         ttk.Button(top, text="複製", command=self.duplicate_card, style="Tool.TButton").pack(side="left", padx=2)
         ttk.Button(top, text="刪除", command=self.delete_card, style="Tool.TButton").pack(side="left", padx=2)
-        ttk.Label(top, text="版型").pack(side="left", padx=(16, 0))
-        self.template_combo = ttk.Combobox(top, state="readonly", width=19)
-        self.template_combo.pack(side="left", padx=6);self.template_combo.bind("<<ComboboxSelected>>", self._choose_template)
         ttk.Button(top, text="調整尺寸", command=self.resize_card, style="Tool.TButton").pack(side="left", padx=2)
-        ttk.Button(top, text="空白版型", command=self.blank_template, style="Tool.TButton").pack(side="left", padx=2)
         ttk.Button(top, text="儲存專案", command=self.save_project, style="Tool.TButton").pack(side="right", padx=3)
         ttk.Button(top, text="匯出單張 PDF", command=self.export_one, style="Accent.TButton").pack(side="right", padx=3)
         ttk.Button(top, text="重做", command=self.redo, style="Tool.TButton").pack(side="right", padx=3)
@@ -291,8 +441,8 @@ class PriceCardApp(tk.Tk):
         bar = tk.Menu(self)
         filemenu = tk.Menu(bar, tearoff=0)
         for label, cmd in [
-            ("新建專案", self.new_project), ("開啟專案…", self.open_project),
-            ("儲存專案", self.save_project), ("另存專案…", self.save_project_as),
+            ("新增廠商專案…", self.new_project), ("切換／管理廠商…", self.open_project),
+            ("儲存專案", self.save_project), ("匯出專案備份…", self.save_project_as),
             ("匯入自訂版型…", self.import_template), ("匯出目前版型…", self.export_template),
             ("匯出單張 PDF…", self.export_one), ("匯出列印清單 PDF…", self.export_queue),
         ]: filemenu.add_command(label=label, command=cmd)
@@ -450,6 +600,8 @@ class PriceCardApp(tk.Tk):
                 entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
                 entry.bind("<Control-KeyPress>", self._control_shortcut)
                 self.numeric_input.bind(entry)
+                entry.bind("<Return>", self.apply_properties, add="+")
+                entry.bind("<FocusOut>", self.apply_properties, add="+")
         colors = ttk.Frame(tab);colors.pack(fill="x", pady=(7, 2))
         foreground = ttk.Frame(colors);foreground.pack(side="left", fill="x", expand=True, padx=(0, 4))
         ttk.Label(foreground, text="方塊顏色").pack(anchor="w")
@@ -458,6 +610,8 @@ class PriceCardApp(tk.Tk):
         color_entry = ttk.Entry(foreground_row, textvariable=self.prop_vars["顏色"], width=8)
         color_entry.pack(side="left", fill="x", expand=True)
         color_entry.bind("<Control-KeyPress>", self._control_shortcut)
+        color_entry.bind("<Return>", self.apply_properties, add="+")
+        color_entry.bind("<FocusOut>", self.apply_properties, add="+")
         ttk.Button(foreground_row, text="選", width=3, command=self.pick_color).pack(side="left", padx=(2, 0))
         background = ttk.Frame(colors);background.pack(side="left", fill="x", expand=True)
         ttk.Label(background, text="文字背景色").pack(anchor="w")
@@ -466,28 +620,32 @@ class PriceCardApp(tk.Tk):
         self.background_entry = ttk.Entry(background_row, textvariable=self.background_var, width=8)
         self.background_entry.pack(side="left", fill="x", expand=True)
         self.background_entry.bind("<Control-KeyPress>", self._control_shortcut)
+        self.background_entry.bind("<Return>", self.apply_properties, add="+")
+        self.background_entry.bind("<FocusOut>", self.apply_properties, add="+")
         self.background_picker = ttk.Button(background_row, text="選", width=3, command=self.pick_background_color)
         self.background_picker.pack(side="left", padx=(2, 0))
-        self.background_clear = ttk.Button(background_row, text="×", width=2, command=lambda: self.background_var.set(""))
+        self.background_clear = ttk.Button(background_row, text="×", width=2, command=self.clear_background)
         self.background_clear.pack(side="left", padx=(2, 0))
         self.bold_var = tk.BooleanVar(value=False)
-        self.bold_check = ttk.Checkbutton(tab, text="粗體", variable=self.bold_var)
+        self.bold_check = ttk.Checkbutton(tab, text="粗體", variable=self.bold_var, command=self.apply_properties)
         self.bold_check.pack(anchor="w", pady=(6, 0))
         ttk.Label(tab, text="文字對齊").pack(anchor="w", pady=(6, 2))
         self.align_var = tk.StringVar()
-        ttk.Combobox(tab, textvariable=self.align_var, values=["left", "center", "right"], state="readonly").pack(fill="x")
+        align_combo = ttk.Combobox(tab, textvariable=self.align_var, values=["left", "center", "right"], state="readonly")
+        align_combo.pack(fill="x");align_combo.bind("<<ComboboxSelected>>", self.apply_properties)
         flags = ttk.Frame(tab);flags.pack(fill="x", pady=8)
         self.visible_var = tk.BooleanVar(value=True);self.locked_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(flags, text="顯示", variable=self.visible_var).pack(side="left")
-        ttk.Checkbutton(flags, text="鎖定", variable=self.locked_var).pack(side="left", padx=20)
-        ttk.Button(tab, text="套用方塊設定", command=self.apply_properties, style="Accent.TButton").pack(fill="x")
+        ttk.Checkbutton(flags, text="顯示", variable=self.visible_var, command=self.apply_properties).pack(side="left")
+        ttk.Checkbutton(flags, text="鎖定", variable=self.locked_var, command=self.apply_properties).pack(side="left", padx=20)
+        self.property_error = tk.StringVar(value="")
+        ttk.Label(tab, textvariable=self.property_error, foreground="#B70031", wraplength=290).pack(anchor="w")
         alignrow = ttk.Frame(tab);alignrow.pack(fill="x", pady=8)
         ttk.Button(alignrow, text="水平置中", command=lambda: self.center_element("x")).pack(side="left", padx=2)
         ttk.Button(alignrow, text="垂直置中", command=lambda: self.center_element("y")).pack(side="left", padx=2)
         ttk.Separator(tab).pack(fill="x", pady=(12, 10))
         ttk.Button(tab, text="另存自訂版型…", command=self.save_template).pack(fill="x", pady=3)
-        ttk.Button(tab, text="更新目前自訂版型", command=self.update_template).pack(fill="x", pady=3)
-        ttk.Label(tab, text="單張調整不會覆蓋共用版型；另存版型後可供其他商品使用。",
+        ttk.Button(tab, text="管理共用版型…", command=self.manage_templates).pack(fill="x", pady=3)
+        ttk.Label(tab, text="設定會自動套用；另存後可供所有廠商使用。",
                   foreground="#777777", wraplength=285).pack(anchor="w", pady=5)
 
     def _build_print(self, tab):
@@ -501,7 +659,9 @@ class PriceCardApp(tk.Tk):
         ttk.Button(row, text="加入目前價格牌", command=self.add_queue).pack(side="left", padx=5)
         self.queue_list = tk.Listbox(tab, height=12, exportselection=False)
         self.queue_list.pack(fill="x", pady=10)
-        ttk.Button(tab, text="移除選取項目", command=self.remove_queue).pack(anchor="e")
+        queue_actions = ttk.Frame(tab);queue_actions.pack(fill="x")
+        ttk.Button(queue_actions, text="移除選取項目", command=self.remove_queue).pack(side="left")
+        ttk.Button(queue_actions, text="清空全部", command=self.clear_queue).pack(side="right")
         opt = self._section(tab, "列印設定")
         self.paper = tk.StringVar(value="A4")
         self.orientation = tk.StringVar(value="自動")
@@ -513,9 +673,13 @@ class PriceCardApp(tk.Tk):
             ttk.Label(opt, text=label).pack(anchor="w")
             c = ttk.Combobox(opt, textvariable=var, values=options, state="readonly")
             c.pack(fill="x", pady=(2, 6));c.bind("<<ComboboxSelected>>", self.refresh_layout_label)
-        self._line(opt, "頁邊距 mm", self.margin, numeric=True)
-        self._line(opt, "牌間距 mm", self.gap, numeric=True)
-        ttk.Checkbutton(opt, text="裁切線", variable=self.marks).pack(anchor="w", pady=4)
+        margin_entry = self._line(opt, "頁邊距 mm", self.margin, numeric=True)
+        gap_entry = self._line(opt, "牌間距 mm", self.gap, numeric=True)
+        for entry in (margin_entry, gap_entry):
+            entry.bind("<Return>", self.refresh_layout_label, add="+")
+            entry.bind("<FocusOut>", self.refresh_layout_label, add="+")
+        ttk.Checkbutton(opt, text="裁切線", variable=self.marks,
+                        command=self.refresh_layout_label).pack(anchor="w", pady=4)
         self.layout_label = tk.StringVar(value="")
         ttk.Label(tab, textvariable=self.layout_label, foreground="#595959", wraplength=300).pack(anchor="w", pady=(0, 10))
         self.margin.trace_add("write", lambda *_args: self.refresh_layout_label())
@@ -639,7 +803,7 @@ class PriceCardApp(tk.Tk):
             widget.delete("1.0", "end")
             widget.insert("1.0", p.get(key, ""))
             widget.edit_modified(False)
-        pr = self.project["print"]
+        pr = self.workspace.queue["print"]
         self.paper.set(pr.get("paper", "A4"));self.orientation.set(pr.get("orientation", "自動"))
         self.margin.set(str(pr.get("margin_mm", 5)));self.gap.set(str(pr.get("gap_mm", 2)))
         self.marks.set(bool(pr.get("crop_marks", True)))
@@ -647,6 +811,8 @@ class PriceCardApp(tk.Tk):
         self._last_edit = (None, 0.0)
         self.refresh_elements()
         self.refresh_queue()
+        if self.project_id:
+            self.vendor_label.set(self.workspace.record(self.project_id)["name"])
         self.size_label.set(f"{self.card['width_mm']:g} × {self.card['height_mm']:g} mm  •  100% PDF")
         self.schedule_render()
 
@@ -654,10 +820,6 @@ class PriceCardApp(tk.Tk):
         self.card_combo["values"] = [c["name"] + f"  ({c['id'][:4]})" for c in self.project["cards"]]
         idx = next(i for i, c in enumerate(self.project["cards"]) if c["id"] == self.project["current_id"])
         self.card_combo.current(idx)
-        templates = list(core.all_templates(self.project).values())
-        self.template_ids = [t["id"] for t in templates]
-        self.template_combo["values"] = [f"{t['name']}  {t['width_mm']:g}×{t['height_mm']:g}" for t in templates]
-        self.template_combo.current(self.template_ids.index(self.card["template_id"]) if self.card["template_id"] in self.template_ids else 0)
 
     def refresh_elements(self):
         self.listbox.delete(0, "end")
@@ -688,6 +850,7 @@ class PriceCardApp(tk.Tk):
         return next((el for el in self.card["elements"] if el["id"] == self.selected), None)
 
     def _load_properties(self, el):
+        self._loading_properties = True
         self.selected_label.set(el.get("label") or core.FIELD_LABELS.get(el["field"], "方塊"))
         for key, value in zip(("X", "Y", "寬", "高"), el["rect"]):self.prop_vars[key].set(f"{value:g}")
         self.prop_vars["字級 pt"].set(f"{el.get('size', 10):g}")
@@ -702,8 +865,11 @@ class PriceCardApp(tk.Tk):
         self.align_var.set(el.get("align", "left"))
         self.visible_var.set(el.get("visible", True))
         self.locked_var.set(el.get("locked", False))
+        self.property_error.set("")
+        self._loading_properties = False
 
-    def apply_properties(self):
+    def apply_properties(self, _event=None):
+        if self._loading_properties or self._loading:return
         el = self.element()
         if el is None: return
         try:
@@ -717,25 +883,38 @@ class PriceCardApp(tk.Tk):
             if rect[0] < 0 or rect[1] < 0 or rect[0] + rect[2] > self.card["width_mm"] or rect[1] + rect[3] > self.card["height_mm"]:
                 raise ValueError()
         except Exception:
-            messagebox.showerror("方塊設定", "請檢查座標、大小、字級及 #RRGGBB 色彩；可用右側數字鍵盤輸入小數點，方塊須在成品內。")
+            self.property_error.set("請檢查座標、大小、字級及 #RRGGBB 色彩；方塊須在成品內。")
+            return
+        proposed = {"rect": rect, "size": size, "color": color, "align": self.align_var.get(),
+                    "visible": self.visible_var.get(), "locked": self.locked_var.get()}
+        if el.get("kind") == "text":
+            proposed["bold"] = self.bold_var.get()
+            proposed["fill"] = background or None
+        if all(el.get(key) == value for key, value in proposed.items()):
+            self.property_error.set("")
             return
         self._snapshot()
-        el.update({"rect": rect, "size": size, "color": color, "align": self.align_var.get(),
-                   "visible": self.visible_var.get(), "locked": self.locked_var.get()})
-        if el.get("kind") == "text":
-            el["bold"] = self.bold_var.get()
-            el["fill"] = background or None
+        el.update(proposed)
+        self.property_error.set("")
         self.refresh_elements();self.schedule_render();self.schedule_save()
 
     def pick_color(self):
         result = colorchooser.askcolor(self.prop_vars["顏色"].get(), title="選取方塊顏色")
-        if result[1]: self.prop_vars["顏色"].set(result[1].upper())
+        if result[1]:
+            self.prop_vars["顏色"].set(result[1].upper())
+            self.apply_properties()
 
     def pick_background_color(self):
         el = self.element()
         if el is None or el.get("kind") != "text": return
         result = colorchooser.askcolor(self.background_var.get() or "#FFFFFF", title="選取文字背景色")
-        if result[1]: self.background_var.set(result[1].upper())
+        if result[1]:
+            self.background_var.set(result[1].upper())
+            self.apply_properties()
+
+    def clear_background(self):
+        self.background_var.set("")
+        self.apply_properties()
 
     def center_element(self, axis):
         el = self.element()
@@ -1044,16 +1223,6 @@ class PriceCardApp(tk.Tk):
         self.selected = None;self.undo_stack.clear();self.redo_stack.clear()
         self.load_card()
 
-    def _choose_template(self, _event):
-        index = self.template_combo.current()
-        if index < 0:return
-        template = core.all_templates(self.project)[self.template_ids[index]]
-        if template["id"] == self.card["template_id"]:return
-        if not messagebox.askyesno("套用版型", "保留商品內容，改用選取版型的尺寸與方塊位置？\n目前這張牌的位置調整會被替換。"):
-            self.refresh_combos();return
-        self._snapshot();core.switch_template(self.card, template)
-        self.selected = None;self.load_card();self.schedule_save()
-
     def resize_card(self):
         w = NumericFloatDialog(self, "成品寬度", "寬度 mm（40 至 420）：", self.card["width_mm"], 40, 420).result
         if w is None:return
@@ -1064,11 +1233,39 @@ class PriceCardApp(tk.Tk):
         self.refresh_queue();self.schedule_render();self.schedule_save()
 
     def new_card(self):
-        template = core.all_templates(self.project).get(self.card["template_id"], core.default_templates()["compact-90x60"])
-        card = core.new_card(template)
+        result = self.choose_new_card(self)
+        if result is None:return
+        draft, card = result
+        self.project["assets"].update(draft["assets"])
+        self.project["templates"].update(draft["templates"])
         self.project["cards"].append(card);self.project["current_id"] = card["id"]
         self.selected = None;self.undo_stack.clear();self.redo_stack.clear()
         self.load_card();self.schedule_save()
+
+    def choose_new_card(self, parent):
+        rows = [(key, f"內建｜{t['name']}  {t['width_mm']:g}×{t['height_mm']:g} mm")
+                for key, t in core.default_templates().items()]
+        rows += [(t["id"], f"自訂｜{t['name']}  {t['template']['width_mm']:g}×{t['template']['height_mm']:g} mm")
+                 for t in self.workspace.active_templates()]
+        rows.append(("blank", "空白價格牌｜自行指定尺寸"))
+        choice = ListChoiceDialog(parent, "選擇預設版型", rows, "新增價格牌時選擇版型；現有價格牌可直接調整方塊與尺寸。").result
+        if choice is None:return None
+        draft = core.new_project()
+        if choice == "blank":
+            w = NumericFloatDialog(parent, "空白價格牌", "成品寬度 mm（40 至 420）：", 90, 40, 420).result
+            if w is None:return None
+            h = NumericFloatDialog(parent, "空白價格牌", "成品高度 mm（30 至 420）：", 60, 30, 420).result
+            if h is None:return None
+            template = {"id": "blank-" + uuid.uuid4().hex[:10], "name": f"空白 {w:g}×{h:g}",
+                        "width_mm": w, "height_mm": h, "mode": "single",
+                        "safe_margin_mm": 3, "elements": [], "builtin": False}
+            draft["templates"][template["id"]] = template
+            card = core.new_card(template)
+        else:
+            card = self.workspace.card_from_template(draft, choice)
+        draft["cards"] = [card]
+        draft["current_id"] = card["id"]
+        return draft, card
 
     def delete_card(self):
         if len(self.project["cards"]) < 2:
@@ -1078,24 +1275,8 @@ class PriceCardApp(tk.Tk):
             return
         card_id = self.card["id"]
         self.project["cards"] = [c for c in self.project["cards"] if c["id"] != card_id]
-        self.project["queue"] = [q for q in self.project["queue"] if q["card_id"] != card_id]
+        self.workspace.remove_card_from_queue(self.project_id, card_id)
         self.project["current_id"] = self.project["cards"][0]["id"]
-        self.selected = None;self.undo_stack.clear();self.redo_stack.clear()
-        self.load_card();self.schedule_save()
-
-    def blank_template(self):
-        w = NumericFloatDialog(self, "空白版型", "成品寬度 mm（40 至 420）：", 90, 40, 420).result
-        if w is None:return
-        h = NumericFloatDialog(self, "空白版型", "成品高度 mm（30 至 420）：", 60, 30, 420).result
-        if h is None:return
-        name = simpledialog.askstring("空白版型", "版型名稱：", initialvalue=f"自訂 {w:g} × {h:g}", parent=self)
-        if not name:return
-        t = {"id": "custom-" + uuid.uuid4().hex[:10], "name": name.strip(),
-             "width_mm": w, "height_mm": h, "mode": "single", "safe_margin_mm": 3,
-             "elements": [], "builtin": False}
-        self.project["templates"][t["id"]] = t
-        c = core.new_card(t)
-        self.project["cards"].append(c);self.project["current_id"] = c["id"]
         self.selected = None;self.undo_stack.clear();self.redo_stack.clear()
         self.load_card();self.schedule_save()
 
@@ -1107,35 +1288,57 @@ class PriceCardApp(tk.Tk):
         self.load_card();self.schedule_save()
 
     def new_project(self):
-        if not messagebox.askyesno("新建專案", "確定開啟空白專案？目前內容可先儲存為專案檔。"):
-            return
-        self.project = core.new_project();self.project_path = None
-        self.undo_stack.clear();self.redo_stack.clear();self.selected = None
-        self.load_card();self.schedule_save()
+        if not self._save_current():return
+        manager = ProjectManager(self, create_immediately=True)
+        if manager.result:self._activate_project(manager.result)
+        elif self.project_id and self.workspace.record(self.project_id).get("archived"):
+            self.project_id = None;self.open_project(startup=True)
 
-    def open_project(self):
-        filename = filedialog.askopenfilename(title="開啟價格牌專案", filetypes=[("集雅社專案", "*.jyp"), ("JSON", "*.json")])
-        if not filename:return
-        try: project = core.load_project(filename)
-        except Exception as exc:messagebox.showerror("開啟專案", str(exc));return
-        self.project = project;self.project_path = Path(filename)
+    def open_project(self, startup=False):
+        if not startup and self.project_id and not self._save_current():return
+        manager = ProjectManager(self, startup=startup)
+        if manager.result:
+            try:self._activate_project(manager.result)
+            except Exception as exc:
+                messagebox.showerror("開啟專案", str(exc), parent=self)
+                if startup:self.destroy()
+        elif startup:self.destroy()
+        elif self.project_id:
+            if self.workspace.record(self.project_id).get("archived"):
+                self.project_id = None
+                self.open_project(startup=True)
+                return
+            self.vendor_label.set(self.workspace.record(self.project_id)["name"])
+            self.refresh_queue()
+
+    def _activate_project(self, project_id):
+        project = self.workspace.load_project(project_id)
+        self.project = project;self.project_id = project_id
         self.undo_stack.clear();self.redo_stack.clear();self.selected = None
+        self.deiconify()
+        if sys.platform == "win32":self.state("zoomed")
         self.load_card();self.schedule_save()
 
     def save_project_as(self):
-        filename = filedialog.asksaveasfilename(title="儲存專案", defaultextension=".jyp",
+        filename = filedialog.asksaveasfilename(title="匯出專案備份", defaultextension=".jyp",
                                                  filetypes=[("集雅社專案", "*.jyp")])
-        if filename:self._save_to(Path(filename))
+        if filename:
+            if not self._save_current():return
+            try:core.save_project(Path(filename), copy.deepcopy(self.project))
+            except Exception as exc:messagebox.showerror("匯出備份", str(exc));return
+            self.status.set("專案備份已匯出：" + Path(filename).name)
 
     def save_project(self):
-        if self.project_path is None:return self.save_project_as()
-        self._save_to(self.project_path)
+        if self._save_current():self.status.set("已儲存廠商專案：" + self.vendor_label.get())
 
-    def _save_to(self, filename):
-        try:core.save_project(filename, self.project)
-        except Exception as exc:messagebox.showerror("儲存專案", str(exc));return
-        self.project_path = filename
-        self.status.set("已儲存：" + filename.name)
+    def _save_current(self):
+        if not self.project_id:return True
+        if self.save_job:
+            self.after_cancel(self.save_job);self.save_job = None
+        try:self.workspace.save_project(self.project_id, self.project)
+        except Exception as exc:
+            messagebox.showerror("儲存專案", str(exc), parent=self);return False
+        return True
 
     def schedule_save(self):
         if self.save_job:self.after_cancel(self.save_job)
@@ -1143,27 +1346,42 @@ class PriceCardApp(tk.Tk):
 
     def _autosave(self):
         self.save_job = None
-        try:core.save_project(autosave_path(), self.project)
+        if not self.project_id:return
+        try:self.workspace.save_project(self.project_id, self.project)
         except Exception as exc:self.status.set("自動儲存未完成：" + str(exc))
 
     def save_template(self):
         name = simpledialog.askstring("另存自訂版型", "自訂版型名稱：", initialvalue="我的「" + self.card["mode"] + "」版型", parent=self)
         if not name:return
-        try:core.save_as_template(self.project, self.card, name)
+        try:self.workspace.save_card_template(self.project, self.card, name)
         except Exception as exc:messagebox.showerror("版型", str(exc));return
-        self.refresh_combos();self.schedule_save()
+        self.schedule_save()
         self.status.set("已儲存自訂版型：" + name)
 
-    def update_template(self):
-        template = self.project["templates"].get(self.card["template_id"])
-        if not template:
-            messagebox.showinfo("更新版型", "目前是內建版型。請先另存為自訂版型。")
+    def manage_templates(self):
+        entries = self.workspace.templates["templates"]
+        if not entries:
+            messagebox.showinfo("共用版型", "目前沒有自訂版型。可以將目前價格牌另存為新版型。", parent=self)
             return
-        if not messagebox.askyesno("更新自訂版型", "將目前方塊位置與樣式存為這個自訂版型的預設值？\n先前儲存的其他價格牌不會改變。"):
-            return
-        for key in ("elements", "width_mm", "height_mm", "safe_margin_mm", "mode"):
-            template[key] = copy.deepcopy(self.card[key])
-        self.schedule_save();self.status.set("已更新自訂版型：" + template["name"])
+        rows = [(entry["id"], ("已刪除｜" if entry.get("archived") else "可使用｜") + entry["name"])
+                for entry in entries]
+        chosen = ListChoiceDialog(self, "管理共用版型", rows, "選擇要重新命名、移至已刪除區或還原的版型。").result
+        if chosen is None:return
+        entry = next(item for item in entries if item["id"] == chosen)
+        actions = [("rename", "重新命名"),
+                   ("restore" if entry.get("archived") else "archive",
+                    "還原" if entry.get("archived") else "移至已刪除區")]
+        action = ListChoiceDialog(self, "版型操作", actions, entry["name"]).result
+        if action is None:return
+        try:
+            if action == "rename":
+                name = simpledialog.askstring("重新命名版型", "新版型名稱：", initialvalue=entry["name"], parent=self)
+                if name:self.workspace.rename_template(chosen, name)
+            elif action == "archive":
+                if messagebox.askyesno("移至已刪除區", "將此版型移至已刪除區？已建立的價格牌不受影響。", parent=self):
+                    self.workspace.archive_template(chosen, True)
+            else:self.workspace.archive_template(chosen, False)
+        except Exception as exc:messagebox.showerror("共用版型", str(exc), parent=self)
 
     def export_template(self):
         source = core.all_templates(self.project).get(self.card["template_id"])
@@ -1190,18 +1408,11 @@ class PriceCardApp(tk.Tk):
             if not 40 <= float(t["width_mm"]) <= 420 or not 30 <= float(t["height_mm"]) <= 420:
                 raise ValueError("版型尺寸超出範圍")
         except Exception as exc:messagebox.showerror("匯入版型", str(exc));return
-        t["id"] = "custom-" + uuid.uuid4().hex[:10]
-        t["builtin"] = False
-        core.upgrade_visual_elements(t)
-        for el in t["elements"]:
-            key = el.get("asset_key")
-            if key and key in data.get("assets", {}):
-                new_key = "upload-" + uuid.uuid4().hex[:12]
-                self.project["assets"][new_key] = data["assets"][key]
-                el["asset_key"] = new_key
-        self.project["templates"][t["id"]] = t
-        self.refresh_combos();self.schedule_save()
-        self.status.set("已匯入版型：" + t["name"])
+        try:
+            core.upgrade_visual_elements(t)
+            entry = self.workspace.add_template(t, data.get("assets", {}))
+        except Exception as exc:messagebox.showerror("匯入版型", str(exc));return
+        self.status.set("已匯入版型：" + entry["name"])
 
     def _confirm_warnings(self, warnings):
         if not warnings:return True
@@ -1221,71 +1432,89 @@ class PriceCardApp(tk.Tk):
 
     def refresh_queue(self):
         self.queue_list.delete(0, "end")
-        lookup = {c["id"]: c for c in self.project["cards"]}
-        for item in self.project["queue"]:
-            c = lookup.get(item["card_id"])
-            if c: self.queue_list.insert("end", f"{c['name']}  ·  {c['width_mm']:g}×{c['height_mm']:g} mm  ·  {item['qty']} 張")
+        for item in self._resolved_queue(True):
+            card = item["card"]
+            name = card["name"] if card else item["card_id"] or "未知價格牌"
+            detail = f"{card['width_mm']:g}×{card['height_mm']:g} mm" if card else item["reason"]
+            self.queue_list.insert("end", f"{item['vendor']}｜{name}  ·  {detail}  ·  {item['qty']} 張"
+                                   + (f"【不可列印：{item['reason']}】" if item["reason"] else ""))
         self.refresh_layout_label()
 
+    def _resolved_queue(self, allow_unavailable=False):
+        return self.workspace.resolve_queue(allow_unavailable, self.project_id, self.project)
+
     def _queued_cards(self):
-        lookup = {c["id"]: c for c in self.project["cards"]}
         cards = []
-        for item in self.project["queue"]:
-            card = lookup.get(item["card_id"])
-            if card and 1 <= int(item["qty"]) <= 1000:
-                cards.extend([card] * int(item["qty"]))
+        for item in self._resolved_queue():
+            if not 1 <= item["qty"] <= 1000:raise ValueError("份數須為 1 至 1000")
+            cards.extend([item["card"]] * item["qty"])
         if len(cards) > 1000: raise ValueError("每次最多輸出 1000 張價格牌")
         return cards
 
     def add_queue(self):
         try:qty = int(self.qty.get());assert 1 <= qty <= 1000
         except Exception:messagebox.showwarning("份數", "請輸入 1 至 1000 張。");return
-        self.project["queue"].append({"card_id": self.card["id"], "qty": qty})
-        self.refresh_queue();self.schedule_save();self.tabs.select(1)
+        try:self.workspace.add_queue_item(self.project_id, self.card["id"], qty)
+        except Exception as exc:messagebox.showerror("列印清單", str(exc));return
+        self.refresh_queue();self.tabs.select(1)
 
     def remove_queue(self):
         selected = self.queue_list.curselection()
         if not selected:return
-        self.project["queue"].pop(selected[0]);self.refresh_queue();self.schedule_save()
+        try:self.workspace.remove_queue_item(selected[0])
+        except Exception as exc:messagebox.showerror("列印清單", str(exc));return
+        self.refresh_queue()
+
+    def clear_queue(self):
+        if not self.workspace.queue["items"]:return
+        if not messagebox.askyesno("清空列印清單", "清空全部廠商的列印清單？", parent=self):return
+        try:self.workspace.clear_queue()
+        except Exception as exc:messagebox.showerror("列印清單", str(exc));return
+        self.refresh_queue()
+
+    def _print_settings(self):
+        return {"paper": self.paper.get(), "orientation": self.orientation.get(),
+                "margin_mm": parse_number(self.margin.get()), "gap_mm": parse_number(self.gap.get()),
+                "crop_marks": self.marks.get()}
 
     def refresh_layout_label(self, _event=None):
         try:
-            if self.project["queue"]:
+            if self.workspace.queue["items"]:
                 cards = self._queued_cards()
                 lo = core.plan_sheet(cards, self.paper.get(), self.orientation.get(),
-                                     float(self.margin.get()), float(self.gap.get()))
+                                     parse_number(self.margin.get()), parse_number(self.gap.get()))
                 self.layout_label.set(f"列印清單預估：{len(cards)} 張，{self.paper.get()}{lo['orientation']}，共 {len(lo['pages'])} 頁")
             else:
                 lo = core.layout_for(float(self.card["width_mm"]), float(self.card["height_mm"]),
-                                     self.paper.get(), self.orientation.get(), float(self.margin.get()), float(self.gap.get()))
+                                     self.paper.get(), self.orientation.get(), parse_number(self.margin.get()), parse_number(self.gap.get()))
                 self.layout_label.set(f"目前尺寸參考：{lo['orientation']}，每頁 {lo['cols']} 欄 × {lo['rows']} 列，最多 {lo['capacity']} 張")
+            if not self._loading:self.workspace.save_print_settings(self._print_settings())
         except Exception as exc:self.layout_label.set(str(exc))
 
     def export_queue(self):
-        if not self.project["queue"]:
+        if not self.workspace.queue["items"]:
             messagebox.showinfo("列印清單", "請先將價格牌加入列印清單。")
             return
         try:
-            settings = {"paper": self.paper.get(), "orientation": self.orientation.get(),
-                        "margin_mm": float(self.margin.get()), "gap_mm": float(self.gap.get()),
-                        "crop_marks": self.marks.get()}
+            settings = self._print_settings()
             core.plan_sheet(self._queued_cards(), settings["paper"], settings["orientation"],
                             settings["margin_mm"], settings["gap_mm"])
         except Exception as exc:messagebox.showerror("列印設定", str(exc));return
         filename = filedialog.asksaveasfilename(title="匯出整頁列印 PDF", defaultextension=".pdf",
                                                  initialfile="集雅社價格牌列印.pdf", filetypes=[("PDF", "*.pdf")])
         if not filename:return
-        self.project["print"] = settings
+        if not self._save_current():return
         try:
             warnings = []
-            lookup = {c["id"]: c for c in self.project["cards"]}
-            for item in self.project["queue"]:
-                _blob, problem = core.render_card_pdf(lookup[item["card_id"]], self.project)
+            resolved = self._resolved_queue()
+            for item in resolved:
+                _blob, problem = core.render_card_pdf(item["card"], item["project"])
                 warnings.extend(problem)
             if not self._confirm_warnings(list(dict.fromkeys(warnings))):return
-            pages, _ = core.export_sheet(filename, self.project)
+            pages, _ = core.export_sheet_multi(filename, resolved, settings)
         except Exception as exc:messagebox.showerror("匯出 PDF", str(exc));return
-        self.schedule_save();self._export_finished(filename, pages)
+        self.workspace.save_print_settings(settings)
+        self._export_finished(filename, pages)
 
     def _export_finished(self, filename, pages=None):
         suffix = f"（{pages} 頁）" if pages else ""
@@ -1298,17 +1527,17 @@ class PriceCardApp(tk.Tk):
             except Exception as exc:messagebox.showwarning("開啟 PDF", str(exc))
 
     def show_help(self):
-        messagebox.showinfo("操作說明", "1. 選擇版型，於左側輸入內容。\n"
+        messagebox.showinfo("操作說明", "1. 開啟廠商專案，新增價格牌時選擇版型，於左側輸入內容。\n"
                             "2. 在預覽點選方塊，拖移方塊可移動，拖移四角可調整大小。\n"
                             "3. 左右欄可用滾輪捲動；預覽滾輪縮放，中鍵拖曳平移。\n"
                             "4. 右側可設定座標、粗體與顏色；數值欄可直接用右側數字鍵盤輸入。\n"
-                            "5. 儲存專案或另存自訂版型，加入列印清單後匯出 PDF。\n"
+                            "5. 專案會自動儲存；另存共用版型後可供所有廠商使用。跨廠商列印清單可一起匯出 PDF。\n"
                             "Ctrl+Z 復原、Ctrl+Y 或 Ctrl+Shift+Z 重做；上方亦有按鈕。\n"
                             "列印時請選擇 100%／實際大小。示範內容不代表現價。")
 
     def on_close(self):
         if self.save_job:self.after_cancel(self.save_job)
-        self._autosave()
+        if not self._save_current():return
         self.numeric_input.restore_all()
         self.destroy()
 

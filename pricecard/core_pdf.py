@@ -238,3 +238,35 @@ def export_sheet(path: os.PathLike, project, queue=None, paper=None, orientation
         c.showPage();pages += 1
     c.save()
     return pages, list(dict.fromkeys(warnings))
+
+
+def export_sheet_multi(path: os.PathLike, resolved_items: list[dict], settings: dict):
+    """Export one sheet sequence from cards that belong to different vendor projects."""
+    expanded = []
+    for item in resolved_items:
+        if item.get("reason") or not item.get("card") or not item.get("project"):
+            raise ValueError("列印清單含不可列印項目")
+        qty = int(item["qty"])
+        if not 1 <= qty <= 1000:raise ValueError("份數須為 1 至 1000")
+        expanded.extend([{"width_mm": item["card"]["width_mm"],
+                          "height_mm": item["card"]["height_mm"],
+                          "card": item["card"], "project": item["project"]}] * qty)
+    if not expanded:raise ValueError("列印清單沒有價格牌，請先加入")
+    if len(expanded) > 1000:raise ValueError("每次最多輸出 1000 張價格牌")
+    layout = core.plan_sheet(expanded, settings["paper"], settings["orientation"],
+                             float(settings["margin_mm"]), float(settings["gap_mm"]))
+    c = canvas.Canvas(str(path), pageCompression=1)
+    pages = 0;warnings = []
+    pw, ph = layout["paper_width"], layout["paper_height"]
+    for page in layout["pages"]:
+        c.setPageSize((pw * core.PT_PER_MM, ph * core.PT_PER_MM))
+        for item, left, top in page:
+            card = item["card"]
+            w, h = float(card["width_mm"]), float(card["height_mm"])
+            x = left * core.PT_PER_MM
+            y = (ph - top - h) * core.PT_PER_MM
+            warnings.extend(draw_card(c, card, item["project"], x, y))
+            if settings["crop_marks"]:_crop_marks(c, x, y, w * core.PT_PER_MM, h * core.PT_PER_MM)
+        c.showPage();pages += 1
+    c.save()
+    return pages, list(dict.fromkeys(warnings))
