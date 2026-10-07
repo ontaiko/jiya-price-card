@@ -199,7 +199,7 @@ class ScrolledFrame(ttk.Frame):
 class PriceCardApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("集雅社價格牌產生器  •  v1.2.1")
+        self.title("集雅社價格牌產生器  •  v1.2.2")
         try:
             icon = str(core.resources() / "app.ico")
             self.iconbitmap(icon)
@@ -491,7 +491,7 @@ class PriceCardApp(tk.Tk):
                   foreground="#777777", wraplength=285).pack(anchor="w", pady=5)
 
     def _build_print(self, tab):
-        ttk.Label(tab, text="不同尺寸自動分頁；尺寸相同可混排。", foreground="#555555", wraplength=300).pack(anchor="w", pady=(0, 8))
+        ttk.Label(tab, text="依清單順序合版；不同尺寸放得下時會共用同一頁。", foreground="#555555", wraplength=300).pack(anchor="w", pady=(0, 8))
         row = ttk.Frame(tab);row.pack(fill="x")
         ttk.Label(row, text="份數").pack(side="left")
         self.qty = tk.IntVar(value=1)
@@ -518,6 +518,8 @@ class PriceCardApp(tk.Tk):
         ttk.Checkbutton(opt, text="裁切線", variable=self.marks).pack(anchor="w", pady=4)
         self.layout_label = tk.StringVar(value="")
         ttk.Label(tab, textvariable=self.layout_label, foreground="#595959", wraplength=300).pack(anchor="w", pady=(0, 10))
+        self.margin.trace_add("write", lambda *_args: self.refresh_layout_label())
+        self.gap.trace_add("write", lambda *_args: self.refresh_layout_label())
         ttk.Button(tab, text="匯出列印清單 PDF…", command=self.export_queue,
                    style="Accent.TButton").pack(fill="x")
         ttk.Label(tab, text="請在 PDF 閱讀器選擇 100%／實際大小列印。",
@@ -645,7 +647,6 @@ class PriceCardApp(tk.Tk):
         self._last_edit = (None, 0.0)
         self.refresh_elements()
         self.refresh_queue()
-        self.refresh_layout_label()
         self.size_label.set(f"{self.card['width_mm']:g} × {self.card['height_mm']:g} mm  •  100% PDF")
         self.schedule_render()
 
@@ -1060,7 +1061,7 @@ class PriceCardApp(tk.Tk):
         if h is None:return
         self._snapshot();self.card["width_mm"] = w;self.card["height_mm"] = h
         self.size_label.set(f"{w:g} × {h:g} mm  •  100% PDF")
-        self.refresh_layout_label();self.schedule_render();self.schedule_save()
+        self.refresh_queue();self.schedule_render();self.schedule_save()
 
     def new_card(self):
         template = core.all_templates(self.project).get(self.card["template_id"], core.default_templates()["compact-90x60"])
@@ -1224,6 +1225,17 @@ class PriceCardApp(tk.Tk):
         for item in self.project["queue"]:
             c = lookup.get(item["card_id"])
             if c: self.queue_list.insert("end", f"{c['name']}  ·  {c['width_mm']:g}×{c['height_mm']:g} mm  ·  {item['qty']} 張")
+        self.refresh_layout_label()
+
+    def _queued_cards(self):
+        lookup = {c["id"]: c for c in self.project["cards"]}
+        cards = []
+        for item in self.project["queue"]:
+            card = lookup.get(item["card_id"])
+            if card and 1 <= int(item["qty"]) <= 1000:
+                cards.extend([card] * int(item["qty"]))
+        if len(cards) > 1000: raise ValueError("每次最多輸出 1000 張價格牌")
+        return cards
 
     def add_queue(self):
         try:qty = int(self.qty.get());assert 1 <= qty <= 1000
@@ -1238,9 +1250,15 @@ class PriceCardApp(tk.Tk):
 
     def refresh_layout_label(self, _event=None):
         try:
-            lo = core.layout_for(float(self.card["width_mm"]), float(self.card["height_mm"]),
-                                 self.paper.get(), self.orientation.get(), float(self.margin.get()), float(self.gap.get()))
-            self.layout_label.set(f"目前尺寸參考：{lo['orientation']}，每頁 {lo['cols']} 欄 × {lo['rows']} 列，最多 {lo['capacity']} 張")
+            if self.project["queue"]:
+                cards = self._queued_cards()
+                lo = core.plan_sheet(cards, self.paper.get(), self.orientation.get(),
+                                     float(self.margin.get()), float(self.gap.get()))
+                self.layout_label.set(f"列印清單預估：{len(cards)} 張，{self.paper.get()}{lo['orientation']}，共 {len(lo['pages'])} 頁")
+            else:
+                lo = core.layout_for(float(self.card["width_mm"]), float(self.card["height_mm"]),
+                                     self.paper.get(), self.orientation.get(), float(self.margin.get()), float(self.gap.get()))
+                self.layout_label.set(f"目前尺寸參考：{lo['orientation']}，每頁 {lo['cols']} 欄 × {lo['rows']} 列，最多 {lo['capacity']} 張")
         except Exception as exc:self.layout_label.set(str(exc))
 
     def export_queue(self):
@@ -1251,10 +1269,8 @@ class PriceCardApp(tk.Tk):
             settings = {"paper": self.paper.get(), "orientation": self.orientation.get(),
                         "margin_mm": float(self.margin.get()), "gap_mm": float(self.gap.get()),
                         "crop_marks": self.marks.get()}
-            for item in self.project["queue"]:
-                c = next(c for c in self.project["cards"] if c["id"] == item["card_id"])
-                core.layout_for(float(c["width_mm"]), float(c["height_mm"]), settings["paper"],
-                                settings["orientation"], settings["margin_mm"], settings["gap_mm"])
+            core.plan_sheet(self._queued_cards(), settings["paper"], settings["orientation"],
+                            settings["margin_mm"], settings["gap_mm"])
         except Exception as exc:messagebox.showerror("列印設定", str(exc));return
         filename = filedialog.asksaveasfilename(title="匯出整頁列印 PDF", defaultextension=".pdf",
                                                  initialfile="集雅社價格牌列印.pdf", filetypes=[("PDF", "*.pdf")])

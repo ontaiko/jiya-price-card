@@ -223,24 +223,18 @@ def export_sheet(path: os.PathLike, project, queue=None, paper=None, orientation
             expanded.extend([card] * int(item["qty"]))
     if not expanded:raise ValueError("列印清單沒有價格牌，請先加入")
     if len(expanded) > 1000:raise ValueError("每次最多輸出 1000 張價格牌")
-    groups = []
-    for card in expanded:
-        dims = (float(card["width_mm"]), float(card["height_mm"]))
-        if not groups or groups[-1][0] != dims:groups.append((dims, []))
-        groups[-1][1].append(card)
+    layout = core.plan_sheet(expanded, paper, orientation, margin, gap)
     c = canvas.Canvas(str(path), pageCompression=1)
     pages = 0;warnings = []
-    for (w, h), cards in groups:
-        layout = core.layout_for(w, h, paper, orientation, margin, gap)
-        ncol, capacity = layout["cols"], layout["capacity"]
-        pw, ph = layout["paper_width"], layout["paper_height"]
-        for start in range(0, len(cards), capacity):
-            c.setPageSize((pw * core.PT_PER_MM, ph * core.PT_PER_MM))
-            for slot, card in enumerate(cards[start:start + capacity]):
-                x = (margin + (slot % ncol) * (w + gap)) * core.PT_PER_MM
-                y = (ph - margin - h - (slot // ncol) * (h + gap)) * core.PT_PER_MM
-                warnings.extend(draw_card(c, card, project, x, y))
-                if marks:_crop_marks(c, x, y, w * core.PT_PER_MM, h * core.PT_PER_MM)
-            c.showPage();pages += 1
+    pw, ph = layout["paper_width"], layout["paper_height"]
+    for page in layout["pages"]:
+        c.setPageSize((pw * core.PT_PER_MM, ph * core.PT_PER_MM))
+        for card, left, top in page:
+            w, h = float(card["width_mm"]), float(card["height_mm"])
+            x = left * core.PT_PER_MM
+            y = (ph - top - h) * core.PT_PER_MM
+            warnings.extend(draw_card(c, card, project, x, y))
+            if marks:_crop_marks(c, x, y, w * core.PT_PER_MM, h * core.PT_PER_MM)
+        c.showPage();pages += 1
     c.save()
     return pages, list(dict.fromkeys(warnings))

@@ -358,4 +358,47 @@ def layout_for(w: float, h: float, paper: str, orientation: str = "自動",
 
 
 
+def plan_sheet(cards: list[dict], paper: str, orientation: str = "自動",
+               margin: float = 5, gap: float = 2) -> dict:
+    """Place mixed card sizes in queue order without resizing or rotating cards."""
+    if not cards: raise ValueError("列印清單沒有價格牌，請先加入")
+    if paper not in PAPER: raise ValueError("紙張須為 A4 或 A3")
+    if orientation not in ("自動", "直式", "橫式"): raise ValueError("頁面方向無效")
+    if not math.isfinite(margin) or not math.isfinite(gap) or margin < 0 or gap < 0:
+        raise ValueError("邊距與牌間距須為有效的非負數")
+
+    pw, ph = PAPER[paper]
+    options = [(pw, ph, "直式"), (ph, pw, "橫式")]
+    candidates = []
+    for page_width, page_height, label in options:
+        if orientation != "自動" and orientation != label: continue
+        pages = [[]]
+        x = y = margin
+        row_height = 0.0
+        for card in cards:
+            w, h = float(card["width_mm"]), float(card["height_mm"])
+            if (not math.isfinite(w) or not math.isfinite(h) or w <= 0 or h <= 0
+                    or w > page_width - 2 * margin + 1e-8
+                    or h > page_height - 2 * margin + 1e-8):
+                pages = None
+                break
+            if x + w > page_width - margin + 1e-8:
+                x = margin
+                y += row_height + gap
+                row_height = 0.0
+            if y + h > page_height - margin + 1e-8:
+                pages.append([])
+                x = y = margin
+                row_height = 0.0
+            pages[-1].append((card, x, y))
+            x += w + gap
+            row_height = max(row_height, h)
+        if pages is not None:
+            candidates.append({"paper_width": page_width, "paper_height": page_height,
+                               "orientation": label, "pages": pages})
+    if not candidates:
+        raise ValueError(f"列印清單中的價格牌放不進 {paper} 的目前方向及邊距；請改紙張方向或尺寸")
+    return min(candidates, key=lambda item: len(item["pages"]))
+
+
 from .core_pdf import render_card_pdf, export_single, export_sheet  # noqa: E402
